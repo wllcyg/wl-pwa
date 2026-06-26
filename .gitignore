@@ -11,7 +11,11 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
 
+# Cloudflare Wrangler local state & database
+.wrangler
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
