@@ -9,7 +9,23 @@ import { useUserStore } from './store/user'
 // @ts-ignore
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 
-const { needRefresh, updateServiceWorker } = useRegisterSW()
+const { needRefresh, updateServiceWorker } = useRegisterSW({
+  onRegistered(r: any) {
+    if (r) {
+      // 每小时定时检查一次更新
+      setInterval(() => {
+        r.update()
+      }, 60 * 60 * 1000)
+      
+      // 每次用户从后台切回应用时，立刻检查更新
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          r.update()
+        }
+      })
+    }
+  }
+})
 
 watch(needRefresh, (isNeed) => {
   if (isNeed) {
