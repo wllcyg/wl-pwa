@@ -110,7 +110,12 @@ onMounted(async () => {
     <!-- 头像和用户名 -->
     <section class="user-hero" @click="goToEditProfile">
       <div class="avatar-wrapper">
-        <img :src="userStore.userInfo?.avatarUrl || '/default-avatar.png'" alt="User Avatar" class="avatar-img" />
+        <img 
+          :src="userStore.userInfo?.avatarUrl || '/default-avatar.png'" 
+          @error="e => (e.target as HTMLImageElement).src = '/default-avatar.png'"
+          alt="User Avatar" 
+          class="avatar-img" 
+        />
       </div>
       <div class="user-info">
         <h2 class="username">{{ userStore.userInfo?.nickname || userStore.userInfo?.username || '未登录用户' }}</h2>

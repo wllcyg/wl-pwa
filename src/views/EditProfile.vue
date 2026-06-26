@@ -125,7 +125,12 @@ const handleSave = async () => {
       <!-- 头像修改区 -->
       <section class="avatar-section">
         <div class="avatar-wrapper" @click="handleAvatarChange">
-          <img :src="avatarUrl" alt="Avatar" class="avatar-img" />
+          <img 
+            :src="avatarUrl" 
+            @error="e => (e.target as HTMLImageElement).src = '/default-avatar.png'"
+            alt="Avatar" 
+            class="avatar-img" 
+          />
           <div class="avatar-overlay">
             <Camera :size="24" class="camera-icon" />
           </div>
