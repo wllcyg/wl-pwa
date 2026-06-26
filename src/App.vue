@@ -71,7 +71,15 @@ const getDepth = (path: string) => {
   return path.split('/').length
 }
 
+let isFirstLoad = true
+
 router.afterEach((to, from) => {
+  if (isFirstLoad) {
+    isFirstLoad = false
+    transitionName.value = '' // 初次加载无动画，避免 iOS PWA 初始渲染的输入框焦点 bug
+    return
+  }
+
   const toDepth = getDepth(to.path)
   const fromDepth = getDepth(from.path)
   // 当层级相同时（例如在 Tab 间切换），为了避免奇怪的左右横跳，也默认使用简单的 fade 或者静止
