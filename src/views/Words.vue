@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useSwipe } from '@vueuse/core'
-import { Volume2 } from 'lucide-vue-next'
+import { Volume2, Loader2 } from 'lucide-vue-next'
 
 // Initial state with a loading placeholder
 const wordsList = ref([
@@ -68,38 +68,54 @@ const changeWord = (newIndex: number) => {
   }, 300) // Match the CSS transition duration
 }
 
-const isPlaying = ref(false)
+const playingText = ref('')
+const loadingText = ref('')
 const currentAudio = ref<HTMLAudioElement | null>(null)
 
 const playAudio = async (text: string) => {
-  if (isPlaying.value) {
+  if (playingText.value === text || loadingText.value === text) {
     currentAudio.value?.pause()
-    isPlaying.value = false
+    playingText.value = ''
+    loadingText.value = ''
     return
   }
 
+  if (currentAudio.value) {
+    currentAudio.value.pause()
+  }
+
   try {
-    isPlaying.value = true
+    loadingText.value = text
+    playingText.value = ''
+    
     const audioUrl = `/api/tts?text=${encodeURIComponent(text)}`
     
-    // We use the browser's Audio API.
-    // The first request will take 1-2s and Cloudflare will cache it.
     const audio = new Audio(audioUrl)
     currentAudio.value = audio
     
+    audio.onplaying = () => {
+      loadingText.value = ''
+      playingText.value = text
+    }
+
     audio.onended = () => {
-      isPlaying.value = false
+      playingText.value = ''
+      loadingText.value = ''
     }
     
     audio.onerror = (e) => {
       console.error('Audio playback failed', e)
-      isPlaying.value = false
+      playingText.value = ''
+      loadingText.value = ''
     }
     
     await audio.play()
+    loadingText.value = ''
+    playingText.value = text
   } catch (err) {
     console.error('Failed to play audio:', err)
-    isPlaying.value = false
+    playingText.value = ''
+    loadingText.value = ''
   }
 }
 
@@ -209,7 +225,8 @@ onMounted(() => {
         <h1 class="display-word">{{ currentWord.word }}</h1>
         <div class="phonetic-row" @click="playAudio(currentWord.word)">
           <span class="utility-phonetic">{{ currentWord.phonetic }}</span>
-          <Volume2 :size="16" color="#0033A0" :class="{ 'playing-anim': isPlaying }" style="margin-left: 4px;" />
+          <Loader2 v-if="loadingText === currentWord.word" :size="16" color="#0033A0" class="spin-anim" style="margin-left: 4px;" />
+          <Volume2 v-else :size="16" color="#0033A0" :class="{ 'playing-anim': playingText === currentWord.word }" style="margin-left: 4px;" />
         </div>
       </section>
 
@@ -230,7 +247,8 @@ onMounted(() => {
             <p class="english-example" style="flex: 1;">
               {{ currentWord.englishExample }}
             </p>
-            <Volume2 :size="16" color="#888C91" style="margin-top: 4px;" />
+            <Loader2 v-if="loadingText === currentWord.englishExample" :size="16" color="#888C91" class="spin-anim" style="margin-top: 4px;" />
+            <Volume2 v-else :size="16" color="#888C91" :class="{ 'playing-anim': playingText === currentWord.englishExample }" style="margin-top: 4px;" />
           </div>
         </div>
       </section>
@@ -386,6 +404,20 @@ onMounted(() => {
 @keyframes pulse {
   0% { transform: scale(1); opacity: 1; }
   100% { transform: scale(2.5); opacity: 0; }
+}
+
+.spin-anim {
+  animation: spin 1s linear infinite;
+}
+
+.playing-anim {
+  animation: jiggle 1s ease-in-out infinite;
+}
+
+@keyframes jiggle {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-10deg) scale(1.1); }
+  75% { transform: rotate(10deg) scale(1.1); }
 }
 
 /* Bottom Half: Details */
