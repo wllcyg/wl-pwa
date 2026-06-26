@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'prompt',
       injectRegister: 'auto',
       manifest: {
-        name: 'My PWA App',
-        short_name: 'PWA App',
+        name: 'note',
+        short_name: 'note',
         description: '我的第一个 Vue 3 PWA',
         theme_color: '#ffffff',
         display: 'standalone',

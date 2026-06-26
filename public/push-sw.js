@@ -8,7 +8,7 @@ self.addEventListener('push', function(event) {
     }
   }
 
-  const title = data.title || '今日新词出炉';
+  const title = data.title || '消息通知';
   const options = {
     body: data.body || '快来看看今天的精美短文与单词吧！',
     icon: '/pwa-192x192.png',

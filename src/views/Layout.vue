@@ -107,8 +107,8 @@ const enablePush = async () => {
           <div class="prompt-icon-wrap">
             <Bell :size="28" color="#0033A0" />
           </div>
-          <h3 class="prompt-title">开启每日新词推送？</h3>
-          <p class="prompt-desc">每天早晨 7 点准时送达，不错过每一篇优美短文和单词解析，养成好习惯。</p>
+          <h3 class="prompt-title">开启消息通知？</h3>
+          <p class="prompt-text">开启消息通知，不错过 note 的每日精美内容。</p>
           <div class="prompt-actions">
             <button class="btn-cancel" @click="dismissPrompt">暂不需要</button>
             <button class="btn-confirm" @click="enablePush">开启通知</button>
