@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useSwipe } from '@vueuse/core'
 import { Volume2, Loader2 } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 // Initial state with a loading placeholder
 const wordsList = ref([
@@ -105,6 +106,7 @@ const playAudio = async (text: string) => {
     
     audio.onerror = (e) => {
       console.error('Audio playback failed', e)
+      toast.error('语音加载失败，可能是云端 AI 额度已耗尽或网络问题。')
       playingText.value = ''
       loadingText.value = ''
     }
@@ -114,6 +116,7 @@ const playAudio = async (text: string) => {
     playingText.value = text
   } catch (err) {
     console.error('Failed to play audio:', err)
+    toast.error('播放失败，请检查系统音量或网络。')
     playingText.value = ''
     loadingText.value = ''
   }

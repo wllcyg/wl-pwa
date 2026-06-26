@@ -42,9 +42,14 @@ body {
 }
 
 /* 全局输入框与按钮重置 */
-input, button {
+input, textarea, button {
   font-family: inherit;
   font-size: 100%;
+}
+
+input, textarea {
+  user-select: auto !important;
+  -webkit-user-select: auto !important;
 }
 
 button {
