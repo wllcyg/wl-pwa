@@ -71,52 +71,45 @@ const changeWord = (newIndex: number) => {
 
 const playingText = ref('')
 const loadingText = ref('')
-const currentAudio = ref<HTMLAudioElement | null>(null)
 
 const playAudio = async (text: string) => {
   if (playingText.value === text || loadingText.value === text) {
-    currentAudio.value?.pause()
+    window.speechSynthesis.cancel()
     playingText.value = ''
     loadingText.value = ''
     return
   }
 
-  if (currentAudio.value) {
-    currentAudio.value.pause()
-  }
+  window.speechSynthesis.cancel()
 
   try {
     loadingText.value = text
     playingText.value = ''
     
-    const audioUrl = `/api/tts?text=${encodeURIComponent(text)}`
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = 'en-US'
     
-    const audio = new Audio(audioUrl)
-    currentAudio.value = audio
-    
-    audio.onplaying = () => {
+    utterance.onstart = () => {
       loadingText.value = ''
       playingText.value = text
     }
 
-    audio.onended = () => {
+    utterance.onend = () => {
       playingText.value = ''
       loadingText.value = ''
     }
     
-    audio.onerror = (e) => {
-      console.error('Audio playback failed', e)
-      toast.error('语音加载失败，可能是云端 AI 额度已耗尽或网络问题。')
+    utterance.onerror = (e) => {
+      console.error('Speech synthesis failed', e)
+      toast.error('系统语音播放失败')
       playingText.value = ''
       loadingText.value = ''
     }
     
-    await audio.play()
-    loadingText.value = ''
-    playingText.value = text
+    window.speechSynthesis.speak(utterance)
   } catch (err) {
     console.error('Failed to play audio:', err)
-    toast.error('播放失败，请检查系统音量或网络。')
+    toast.error('播放失败，请检查系统设置。')
     playingText.value = ''
     loadingText.value = ''
   }
