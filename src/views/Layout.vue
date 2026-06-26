@@ -1,3 +1,4 @@
+<script setup lang="ts">
 import { BookOpen, User, Bell } from '@lucide/vue'
 import { useRoute } from 'vue-router'
 import { ref, onMounted } from 'vue'
@@ -11,7 +12,7 @@ const VAPID_PUBLIC_KEY = 'BBOhr7vlawsYEFIiLCPEDKVGyQze6UfOkDaGPwB_TO6Ccws6PV0chz
 
 onMounted(() => {
   // Only show if logged in, browser supports push, and hasn't been dismissed
-  if (userStore.isLoggedIn && 'serviceWorker' in navigator && 'PushManager' in window) {
+  if (userStore.token && 'serviceWorker' in navigator && 'PushManager' in window) {
     if (Notification.permission === 'default' && !localStorage.getItem('pushPromptDismissed')) {
       // Delay prompt slightly for better UX
       setTimeout(() => {

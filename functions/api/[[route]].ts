@@ -184,5 +184,26 @@ app.post('/ping', authMiddleware, async (c) => {
   }
 })
 
+app.get('/daily-words', async (c) => {
+  const today = new Date().toISOString().split('T')[0]
+  try {
+    const { results: dailyRec } = await c.env.DB.prepare('SELECT word_ids FROM daily_words ORDER BY date DESC LIMIT 1').all()
+    if (!dailyRec || dailyRec.length === 0) {
+      return c.json([])
+    }
+    
+    const wordIds = JSON.parse(dailyRec[0].word_ids as string)
+    if (!wordIds || wordIds.length === 0) return c.json([])
+    
+    // Create placeholders for IN clause
+    const placeholders = wordIds.map(() => '?').join(',')
+    const { results: words } = await c.env.DB.prepare(`SELECT * FROM words WHERE id IN (${placeholders})`).bind(...wordIds).all()
+    
+    return c.json(words || [])
+  } catch (e: any) {
+    return c.json({ error: 'Failed to fetch daily words: ' + e.message }, 500)
+  }
+})
+
 // 将 Hono App 绑定到 Cloudflare Pages 的入口函数
 export const onRequest = handle(app)

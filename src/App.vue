@@ -32,7 +32,7 @@ const transitionName = ref('slide-left')
 
 onMounted(() => {
   // Activity Ping for Smart Push
-  if (userStore.isLoggedIn) {
+  if (userStore.token) {
     const today = new Date().toISOString().split('T')[0]
     if (localStorage.getItem('lastActiveDate') !== today) {
       fetch('/api/ping', {
