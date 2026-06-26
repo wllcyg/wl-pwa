@@ -3,6 +3,8 @@ import { handle } from 'hono/cloudflare-pages'
 
 type Bindings = {
   DB: D1Database
+  BUCKET: R2Bucket
+  AI: any
 }
 
 const app = new Hono<{ Bindings: Bindings }>().basePath('/api')
@@ -112,6 +114,73 @@ app.post('/login', async (c) => {
     }
   } catch (e: any) {
     return c.json({ error: '数据库错误: ' + e.message }, 500)
+  }
+})
+
+app.get('/tts', async (c) => {
+  const text = c.req.query('text');
+  if (!text) {
+    return c.json({ error: 'Missing text parameter' }, 400);
+  }
+
+  try {
+    // Generate audio using Deepgram Aura 2
+    const inputs = { text };
+    const response = await c.env.AI.run('@cf/deepgram/aura-2-en', inputs);
+    
+    // Set headers for Edge Caching (1 year)
+    const headers = new Headers();
+    headers.set('Content-Type', 'audio/wav');
+    headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
+    
+    return new Response(response as any, { headers });
+  } catch (e: any) {
+    return c.json({ error: 'TTS generation failed: ' + e.message }, 500);
+  }
+});
+
+app.post('/subscribe', authMiddleware, async (c) => {
+  const username = c.get('username')
+  const body = await c.req.json()
+  const { endpoint, keys } = body
+
+  if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+    return c.json({ error: 'Invalid subscription data' }, 400)
+  }
+
+  try {
+    // Check if subscription already exists for this endpoint
+    const { results } = await c.env.DB.prepare('SELECT id FROM push_subscriptions WHERE endpoint = ?').bind(endpoint).all()
+    
+    if (results && results.length > 0) {
+      // Update existing subscription
+      await c.env.DB.prepare('UPDATE push_subscriptions SET username = ?, keys_p256dh = ?, keys_auth = ? WHERE endpoint = ?')
+        .bind(username, keys.p256dh, keys.auth, endpoint)
+        .run()
+    } else {
+      // Insert new subscription
+      await c.env.DB.prepare('INSERT INTO push_subscriptions (username, endpoint, keys_p256dh, keys_auth) VALUES (?, ?, ?, ?)')
+        .bind(username, endpoint, keys.p256dh, keys.auth)
+        .run()
+    }
+
+    return c.json({ message: 'Subscription saved successfully' })
+  } catch (e: any) {
+    return c.json({ error: 'Failed to save subscription: ' + e.message }, 500)
+  }
+})
+
+app.post('/ping', authMiddleware, async (c) => {
+  const username = c.get('username')
+  const today = new Date().toISOString().split('T')[0]
+  
+  try {
+    await c.env.DB.prepare('UPDATE push_subscriptions SET last_active_date = ? WHERE username = ?')
+      .bind(today, username)
+      .run()
+    return c.json({ success: true, date: today })
+  } catch (e: any) {
+    return c.json({ error: 'Failed to update activity: ' + e.message }, 500)
   }
 })
 

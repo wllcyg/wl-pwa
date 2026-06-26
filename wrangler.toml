@@ -2,8 +2,15 @@ name = "my-blog"
 compatibility_date = "2024-06-26"
 pages_build_output_dir = "dist"
 
+
 [[d1_databases]]
 binding = "DB"
 database_name = "my-blog-db"
 database_id = "4d5c79ea-3e5b-453f-907a-89b3eb7d3b06"
 
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "my-blog-bucket"
+
+[ai]
+binding = "AI"

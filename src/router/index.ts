@@ -16,12 +16,14 @@ const routes = [
       {
         path: 'words',
         name: 'Words',
-        component: () => import('../views/Words.vue')
+        component: () => import('../views/Words.vue'),
+        meta: { keepAlive: true }
       },
       {
         path: 'profile',
         name: 'Profile',
-        component: () => import('../views/Profile.vue')
+        component: () => import('../views/Profile.vue'),
+        meta: { keepAlive: true }
       }
     ]
   },
@@ -39,7 +41,7 @@ const router = createRouter({
 })
 
 // 路由守卫：登录拦截
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const userStore = useUserStore()
   
   if (to.meta.requiresAuth && !userStore.token) {

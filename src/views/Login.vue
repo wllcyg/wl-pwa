@@ -61,6 +61,9 @@ const handleSubmit = async () => {
 
     // 成功，保存由 Cloudflare Hono 返回的 Token
     userStore.setToken(data.token)
+    if (data.user) {
+      userStore.setUserInfo(data.user)
+    }
     toast.success(isLoginMode.value ? '登录成功，欢迎回来！' : '注册成功！')
     router.push('/words')
   } catch (error: any) {
@@ -75,40 +78,42 @@ const submitText = computed(() => isLoginMode.value ? '登录' : '注册账号')
 
 <template>
   <div class="login-wrapper">
-    <div class="login-header">
-      <img src="/login-hero.png" alt="App Illustration" class="hero-image" />
+    <div class="login-inner">
+      <div class="login-header">
+        <img src="/login-hero.png" alt="App Illustration" class="hero-image" />
+      </div>
+
+      <form class="login-form" @submit.prevent="handleSubmit">
+        <div class="mode-title">
+          <h2>{{ isLoginMode ? '欢迎回来' : '创建新账号' }}</h2>
+        </div>
+
+        <div class="input-group">
+          <label>用户名</label>
+          <input type="text" v-model="username" placeholder="请输入您的用户名" autocomplete="username" />
+        </div>
+
+        <div class="input-group">
+          <label>密码</label>
+          <input type="password" v-model="password" placeholder="请输入密码" autocomplete="new-password" />
+        </div>
+
+        <!-- 注册模式下才显示确认密码 -->
+        <div class="input-group" v-if="!isLoginMode">
+          <label>确认密码</label>
+          <input type="password" v-model="confirmPassword" placeholder="请再次输入密码" autocomplete="new-password" />
+        </div>
+
+        <button type="submit" class="submit-btn" :disabled="loading">
+          <Loader2 v-if="loading" class="spin-icon" :size="20" />
+          <span v-else>{{ submitText }}</span>
+        </button>
+
+        <div class="toggle-mode" @click="toggleMode">
+          {{ isLoginMode ? '没有账号？点击注册' : '已有账号？点击登录' }}
+        </div>
+      </form>
     </div>
-
-    <form class="login-form" @submit.prevent="handleSubmit">
-      <div class="mode-title">
-        <h2>{{ isLoginMode ? '欢迎回来' : '创建新账号' }}</h2>
-      </div>
-
-      <div class="input-group">
-        <label>用户名</label>
-        <input type="text" v-model="username" placeholder="请输入您的用户名" autocomplete="username" />
-      </div>
-
-      <div class="input-group">
-        <label>密码</label>
-        <input type="password" v-model="password" placeholder="请输入密码" autocomplete="new-password" />
-      </div>
-
-      <!-- 注册模式下才显示确认密码 -->
-      <div class="input-group" v-if="!isLoginMode">
-        <label>确认密码</label>
-        <input type="password" v-model="confirmPassword" placeholder="请再次输入密码" autocomplete="new-password" />
-      </div>
-
-      <button type="submit" class="submit-btn" :disabled="loading">
-        <Loader2 v-if="loading" class="spin-icon" :size="20" />
-        <span v-else>{{ submitText }}</span>
-      </button>
-
-      <div class="toggle-mode" @click="toggleMode">
-        {{ isLoginMode ? '没有账号？点击注册' : '已有账号？点击登录' }}
-      </div>
-    </form>
   </div>
 </template>
 
@@ -117,9 +122,17 @@ const submitText = computed(() => isLoginMode.value ? '登录' : '注册账号')
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 0 24px;
+  padding: 24px;
   background-color: var(--color-bg);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.login-inner {
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0;
 }
 
 .login-header {

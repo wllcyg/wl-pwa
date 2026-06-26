@@ -34,7 +34,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        importScripts: ['/push-sw.js']
       },
       devOptions: {
         enabled: true // 允许在开发环境下测试 PWA

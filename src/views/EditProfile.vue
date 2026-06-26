@@ -8,9 +8,9 @@ import { useUserStore } from '../store/user'
 const router = useRouter()
 const userStore = useUserStore()
 
-// 本地状态模拟当前用户信息
-const username = ref('学习者_8923')
-const avatarUrl = ref('/default-avatar.png')
+// 绑定到 store
+const username = ref(userStore.userInfo?.nickname || userStore.userInfo?.username || '')
+const avatarUrl = ref(userStore.userInfo?.avatarUrl || '/default-avatar.png')
 const loading = ref(false)
 
 const goBack = () => {
@@ -30,8 +30,8 @@ const onFileSelected = async (e: Event) => {
   if (!target.files || target.files.length === 0) return
 
   const file = target.files[0]
-  if (file.size > 500 * 1024) {
-    toast.error('由于免费数据库限制，头像大小不能超过 500KB哦')
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('图片过大，请限制在 5MB 以内')
     return
   }
 
@@ -53,6 +53,12 @@ const onFileSelected = async (e: Event) => {
     if (!res.ok) throw new Error(data.error || '上传失败')
 
     avatarUrl.value = data.avatarUrl
+    
+    // 更新 store
+    if (userStore.userInfo) {
+      userStore.setUserInfo({ ...userStore.userInfo, avatarUrl: data.avatarUrl })
+    }
+
     toast.success('头像上传成功！', { id: loadingToast })
   } catch (error: any) {
     toast.error(error.message, { id: loadingToast })
@@ -63,25 +69,41 @@ const onFileSelected = async (e: Event) => {
 
 const handleSave = async () => {
   if (!username.value.trim()) {
-    toast.error('用户名不能为空')
+    toast.error('昵称不能为空')
     return
   }
   
-  if (username.value.length < 3) {
-    toast.error('用户名至少需要 3 个字符')
+  if (username.value.length < 1 || username.value.length > 12) {
+    toast.error('昵称长度必须在 1-12 个字符之间')
     return
   }
 
   loading.value = true
   
-  // 模拟请求后端保存信息
-  await new Promise(resolve => setTimeout(resolve, 800))
-  
-  // TODO: 这里将来可以调用真实 API 更新 D1 数据库，并同步到 userStore
-  
-  toast.success('个人信息保存成功')
-  loading.value = false
-  router.back()
+  try {
+    const res = await fetch('/api/update-nickname', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${userStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ nickname: username.value })
+    })
+
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || '保存失败')
+
+    if (userStore.userInfo) {
+      userStore.setUserInfo({ ...userStore.userInfo, nickname: data.nickname })
+    }
+    
+    toast.success('个人信息保存成功')
+    router.back()
+  } catch (error: any) {
+    toast.error(error.message)
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -138,6 +160,8 @@ const handleSave = async () => {
   background-color: var(--color-bg);
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* 导航栏 */

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useUserStore } from '../store/user'
 import { useRouter } from 'vue-router'
-import { Moon, Info, ChevronRight } from '@lucide/vue'
-import { ref } from 'vue'
+import { Moon, Info, ChevronRight, Bell } from '@lucide/vue'
+import { ref, onMounted } from 'vue'
 import packageJson from '../../package.json'
 
 const userStore = useUserStore()
@@ -23,6 +23,86 @@ const toggleTheme = () => {
 const goToEditProfile = () => {
   router.push('/edit-profile')
 }
+
+// Push Notifications
+const pushEnabled = ref(false)
+const VAPID_PUBLIC_KEY = 'BBOhr7vlawsYEFIiLCPEDKVGyQze6UfOkDaGPwB_TO6Ccws6PV0chzAQsIooCJqNlJxu7zGfOxIAbXlTSh_tXT8'
+
+const urlBase64ToUint8Array = (base64String: string) => {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
+const togglePush = async () => {
+  if (pushEnabled.value) {
+    // Note: unregistering is complex, usually we just let it be or delete from DB.
+    // For simplicity, we just toggle it off in UI.
+    pushEnabled.value = false;
+    return;
+  }
+
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    alert('你的浏览器不支持推送通知。')
+    return
+  }
+
+  try {
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') {
+      alert('必须授权才能开启通知。')
+      return
+    }
+
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    })
+
+    const subJson = subscription.toJSON()
+    
+    // Save to backend
+    const res = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer real-jwt-token-for-${userStore.userInfo?.username}`
+      },
+      body: JSON.stringify({
+        endpoint: subJson.endpoint,
+        keys: subJson.keys
+      })
+    })
+
+    if (res.ok) {
+      pushEnabled.value = true
+      alert('开启每日新词通知成功！')
+    } else {
+      alert('服务器保存失败')
+    }
+  } catch (err: any) {
+    console.error('Failed to subscribe:', err)
+    alert('开启通知失败: ' + err.message)
+  }
+}
+
+onMounted(async () => {
+  if ('serviceWorker' in navigator && 'PushManager' in window) {
+    const reg = await navigator.serviceWorker.getRegistration()
+    if (reg) {
+      const sub = await reg.pushManager.getSubscription()
+      if (sub) {
+        pushEnabled.value = true
+      }
+    }
+  }
+})
 </script>
 
 <template>
@@ -30,10 +110,10 @@ const goToEditProfile = () => {
     <!-- 头像和用户名 -->
     <section class="user-hero" @click="goToEditProfile">
       <div class="avatar-wrapper">
-        <img src="/default-avatar.png" alt="User Avatar" class="avatar-img" />
+        <img :src="userStore.userInfo?.avatarUrl || '/default-avatar.png'" alt="User Avatar" class="avatar-img" />
       </div>
       <div class="user-info">
-        <h2 class="username">学习者_8923</h2>
+        <h2 class="username">{{ userStore.userInfo?.nickname || userStore.userInfo?.username || '未登录用户' }}</h2>
         <div class="edit-hint">
           <span>编辑资料</span>
           <ChevronRight :size="14" />
@@ -53,6 +133,16 @@ const goToEditProfile = () => {
           <!-- 开关容器 -->
           <button class="toggle-track" :class="{ 'toggle-active': isDarkMode }">
             <span class="toggle-thumb" :class="{ 'thumb-active': isDarkMode }"></span>
+          </button>
+        </li>
+        <!-- 推送通知 -->
+        <li class="setting-item border-bottom" @click="togglePush">
+          <div class="item-left">
+            <Bell :size="22" class="icon" />
+            <span class="item-text">每日新词通知</span>
+          </div>
+          <button class="toggle-track" :class="{ 'toggle-active': pushEnabled }">
+            <span class="toggle-thumb" :class="{ 'thumb-active': pushEnabled }"></span>
           </button>
         </li>
         <!-- 版本号 -->
