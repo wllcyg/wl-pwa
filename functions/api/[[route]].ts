@@ -130,7 +130,7 @@ app.get('/tts', async (c) => {
     
     // Set headers for Edge Caching (1 year)
     const headers = new Headers();
-    headers.set('Content-Type', 'audio/wav');
+    headers.set('Content-Type', 'audio/mpeg');
     headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
     
     return new Response(response as any, { headers });
