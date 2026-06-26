@@ -29,7 +29,8 @@ body {
   color: var(--color-text-main);
   /* 移动端防抖动与滚动溢出控制 */
   overscroll-behavior-y: none;
-  overflow: hidden;
+  overflow-x: hidden;
+  /* 移除 body 的 overflow: hidden，解决 iOS PWA 首次启动时键盘无法弹出的焦点 bug */
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -39,6 +40,7 @@ body {
   width: 100vw;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* 将防滚动限制放在 #app 上，而不是 body 上 */
 }
 
 /* 全局输入框与按钮重置 */
@@ -48,8 +50,8 @@ input, textarea, button {
 }
 
 input, textarea {
-  user-select: auto !important;
-  -webkit-user-select: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
 button {
