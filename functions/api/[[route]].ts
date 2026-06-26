@@ -83,7 +83,12 @@ app.post('/register', async (c) => {
 
     return c.json({ 
       message: '注册成功', 
-      token: `real-jwt-token-for-${username}`
+      token: `real-jwt-token-for-${username}`,
+      user: {
+        username,
+        nickname: '',
+        avatarUrl: ''
+      }
     })
   } catch (e: any) {
     return c.json({ error: '数据库错误: ' + e.message }, 500)
@@ -105,9 +110,15 @@ app.post('/login', async (c) => {
       .all()
 
     if (results && results.length > 0) {
+      const userRecord = results[0] as any
       return c.json({ 
         message: '登录成功', 
-        token: `real-jwt-token-for-${username}` 
+        token: `real-jwt-token-for-${username}`,
+        user: {
+          username: userRecord.username,
+          nickname: userRecord.nickname || '',
+          avatarUrl: userRecord.avatar_url || ''
+        }
       })
     } else {
       return c.json({ error: '账号或密码错误' }, 401)
