@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted } from 'vue'
 import { Send, Sparkles, Receipt, ListTodo, FileText, Loader2, Mic, AudioLines, X, Trash2 } from '@lucide/vue'
 import { useUserStore } from '../store/user'
 
@@ -21,33 +21,52 @@ interface RecordItem {
 }
 
 const formatTime = (date: Date) => {
+  const y = date.getFullYear()
+  const mo = (date.getMonth() + 1).toString().padStart(2, '0')
+  const d = date.getDate().toString().padStart(2, '0')
   const h = date.getHours().toString().padStart(2, '0')
   const m = date.getMinutes().toString().padStart(2, '0')
-  return `${h}:${m}`
+  return `${y}-${mo}-${d} ${h}:${m}`
 }
 
-const records = ref<RecordItem[]>([
-  {
-    id: 'intro',
-    rawText: '欢迎使用 AI 闪记。你可以随便输入，比如：“中午买咖啡花了25”、“明天下午3点开会”',
-    type: 'note',
-    createdAt: new Date(),
-    parsedData: { summary: '使用提示', tags: ['系统'] }
+const records = ref<RecordItem[]>([])
+
+const fetchRecords = async () => {
+  try {
+    const userStore = useUserStore()
+    if (!userStore.token) return
+    const res = await fetch('/api/record', {
+      headers: { 'Authorization': `Bearer ${userStore.token}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      records.value = data.map((d: any) => ({
+        ...d,
+        createdAt: new Date(d.createdAt)
+      }))
+      await scrollToBottom()
+    }
+  } catch (err) {
+    console.error('Failed to fetch records', err)
   }
-])
+}
+
+onMounted(() => {
+  fetchRecords()
+})
 
 const inputText = ref('')
 const inputRef = ref<HTMLInputElement | null>(null)
 const listRef = ref<HTMLElement | null>(null)
 
-// 交互状态
+// 彻底解决 iOS 放大镜/选中气泡：采用真假 UI 切换
 const isTypingMode = ref(false)
 const voiceInterimText = ref('')
 
 // 语音识别逻辑
 const isRecording = ref(false)
-const isCanceling = ref(false) // 是否上滑取消
-const showVoiceOverlay = ref(false) // 显示屏幕中央的黑色提示框
+const isCanceling = ref(false)
+const showVoiceOverlay = ref(false)
 let recognition: any = null
 let touchStartY = 0
 let longPressTimer: any = null
@@ -56,16 +75,16 @@ let touchStartX = 0
 const initSpeechRecognition = () => {
   const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
   if (!SpeechRec) return false
-  
+
   recognition = new SpeechRec()
   recognition.continuous = true
   recognition.interimResults = true
   recognition.lang = 'zh-CN'
 
   let finalStr = ''
-  
+
   recognition.onstart = () => {
-    finalStr = inputText.value // 记住之前的输入
+    finalStr = inputText.value
   }
 
   recognition.onresult = (event: any) => {
@@ -79,7 +98,6 @@ const initSpeechRecognition = () => {
       }
     }
     finalStr += currentFinal
-    // 语音文字只上屏到中央黑色弹窗，不污染底部的输入框
     if (!isCanceling.value) {
       voiceInterimText.value = finalStr + currentInterim
     }
@@ -91,25 +109,26 @@ const initSpeechRecognition = () => {
   }
 
   recognition.onend = () => {
-    // 语音识别真正结束
     if (isRecording.value) {
-       endVoiceUI()
+      endVoiceUI()
     }
   }
   return true
 }
 
-// 结束语音状态重置
+// 结束语音状态重置，主动 blur 防止键盘弹起
 const endVoiceUI = () => {
   isRecording.value = false
   showVoiceOverlay.value = false
   isCanceling.value = false
+  // 录音结束后退出打字模式
+  isTypingMode.value = false
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur()
+  }
 }
 
-// 处理长按逻辑
 const handleTouchStart = (e: TouchEvent | MouseEvent) => {
-  // 不阻止默认行为，避免拦截某些外层点击，但因为我们在 div 上绑定了，所以不会触发系统键盘
-  
   if (e instanceof TouchEvent) {
     touchStartY = e.touches[0].clientY
     touchStartX = e.touches[0].clientX
@@ -118,24 +137,21 @@ const handleTouchStart = (e: TouchEvent | MouseEvent) => {
     touchStartX = e.clientX
   }
 
-  // 开始计时，如果是真正的长按（300ms），则进入录音模式
   longPressTimer = setTimeout(() => {
     startVoiceRecording(e)
   }, 300)
 }
 
 const startVoiceRecording = (e: TouchEvent | MouseEvent) => {
-  // 阻止默认的长按菜单、放大镜等
   if (e.cancelable) e.preventDefault()
-  
+
   if (!recognition) {
     if (!initSpeechRecognition()) {
       alert('抱歉，你的浏览器不支持语音输入 API。')
       return
     }
   }
-  
-  // 强制失去焦点，收起键盘（以防万一）
+
   if (document.activeElement instanceof HTMLElement) {
     document.activeElement.blur()
   }
@@ -144,7 +160,7 @@ const startVoiceRecording = (e: TouchEvent | MouseEvent) => {
   showVoiceOverlay.value = true
   isCanceling.value = false
   voiceInterimText.value = ''
-  
+
   try {
     recognition.start()
   } catch (err) {
@@ -163,17 +179,15 @@ const handleTouchMove = (e: TouchEvent | MouseEvent) => {
     currentX = e.clientX
   }
 
-  // 如果还在计时阶段（说明是点按滑动），移动超过 10px 则取消长按判定
   if (longPressTimer && !isRecording.value) {
     if (Math.abs(currentY - touchStartY) > 10 || Math.abs(currentX - touchStartX) > 10) {
       clearTimeout(longPressTimer)
       longPressTimer = null
     }
   }
-  
+
   if (!isRecording.value) return
-  
-  // 如果手指向上移动超过 60px，视为取消
+
   if (touchStartY - currentY > 60) {
     isCanceling.value = true
   } else {
@@ -182,29 +196,28 @@ const handleTouchMove = (e: TouchEvent | MouseEvent) => {
 }
 
 const handleTouchEnd = (e: TouchEvent | MouseEvent) => {
-  // 如果当前处于录音模式，说明触发了长按，绝不能进入短按打字模式
   if (isRecording.value) {
     if (longPressTimer) {
       clearTimeout(longPressTimer)
       longPressTimer = null
     }
-    
-    if (e.cancelable) e.preventDefault() 
-    
+
+    // passive 已去除，preventDefault 在此真正生效，阻止 iOS 弹起键盘
+    if (e.cancelable) e.preventDefault()
+
     try {
       recognition.stop()
-    } catch (err) {}
-    
+    } catch (err) { }
+
     if (isCanceling.value) {
-      // 取消发送
       voiceInterimText.value = ''
       endVoiceUI()
     } else {
-      // 正常发送
+      const textToSend = voiceInterimText.value.trim()
       endVoiceUI()
       setTimeout(() => {
-        if (voiceInterimText.value.trim()) {
-          handleSend(voiceInterimText.value.trim())
+        if (textToSend) {
+          handleSend(textToSend)
           voiceInterimText.value = ''
         }
       }, 300)
@@ -212,11 +225,10 @@ const handleTouchEnd = (e: TouchEvent | MouseEvent) => {
     return
   }
 
-  // 如果没有进入录音模式，说明定时器没跑完就松手了，这是短按（轻点） -> 进入打字模式
+  // 短按 → 打字模式：切换到真输入框，并触发聚焦
   if (longPressTimer) {
     clearTimeout(longPressTimer)
     longPressTimer = null
-    
     isTypingMode.value = true
     nextTick(() => {
       inputRef.value?.focus()
@@ -225,22 +237,20 @@ const handleTouchEnd = (e: TouchEvent | MouseEvent) => {
 }
 
 const handleInputBlur = () => {
-  // 当失去焦点且为空时，退回到“假输入框”形态
   if (!inputText.value.trim()) {
     isTypingMode.value = false
   }
 }
 
-// 调用真实的大模型后端接口
 const parseRecordWithAI = async (text: string): Promise<any> => {
   try {
     const userStore = useUserStore()
     const token = userStore.token
-    
+
     if (!token) {
       throw new Error('Please login first')
     }
-    
+
     const res = await fetch('/api/record', {
       method: 'POST',
       headers: {
@@ -249,11 +259,11 @@ const parseRecordWithAI = async (text: string): Promise<any> => {
       },
       body: JSON.stringify({ text })
     })
-    
+
     if (!res.ok) {
       throw new Error('Network response was not ok')
     }
-    
+
     const data = await res.json()
     return {
       type: data.type,
@@ -280,34 +290,31 @@ const scrollToBottom = async () => {
 
 const handleSend = async (textParam?: string | Event) => {
   let text = ''
-  
+
   if (typeof textParam === 'string') {
     text = textParam
   } else {
     if (!inputText.value.trim()) return
     text = inputText.value.trim()
     inputText.value = ''
-    isTypingMode.value = false // 发送完恢复成假输入框
+    isTypingMode.value = false // 发送完退出打字模式
   }
-  
+
   if (!text) return
-  
+
   const newId = Date.now().toString()
-  
-  // 1. 立即把用户的输入追加到列表，状态设为 loading
+
   records.value.push({
     id: newId,
     rawText: text,
     type: 'loading',
     createdAt: new Date()
   })
-  
+
   await scrollToBottom()
-  
-  // 2. 模拟调用 AI
+
   const aiResult = await parseRecordWithAI(text)
-  
-  // 3. 更新对应的记录状态
+
   const idx = records.value.findIndex(r => r.id === newId)
   if (idx !== -1) {
     records.value[idx] = {
@@ -316,7 +323,7 @@ const handleSend = async (textParam?: string | Event) => {
       parsedData: aiResult.parsedData
     }
   }
-  
+
   await scrollToBottom()
 }
 
@@ -326,27 +333,24 @@ let listTouchStartX = 0
 let listTouchStartY = 0
 let listTouchStartId = ''
 
-const onListTouchStart = (e: TouchEvent, id: string) => {
+const onListTouchStart = (e: TouchEvent | MouseEvent, id: string) => {
   if (activeSwipeId.value && activeSwipeId.value !== id) {
-    activeSwipeId.value = null // 点击其他项时收起
+    activeSwipeId.value = null
   }
-  listTouchStartX = e.touches[0].clientX
-  listTouchStartY = e.touches[0].clientY
+  listTouchStartX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX
+  listTouchStartY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY
   listTouchStartId = id
 }
 
-const onListTouchMove = (e: TouchEvent) => {
+const onListTouchMove = (e: TouchEvent | MouseEvent) => {
   if (!listTouchStartId) return
-  const currentX = e.touches[0].clientX
-  const currentY = e.touches[0].clientY
-  
-  // 判定是否为明显横向滑动（容差5px防抖）
+  const currentX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX
+  const currentY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY
+
   if (Math.abs(currentX - listTouchStartX) > Math.abs(currentY - listTouchStartY) + 5) {
     if (currentX < listTouchStartX - 30) {
-      // 向左滑打开
       activeSwipeId.value = listTouchStartId
     } else if (currentX > listTouchStartX + 30) {
-      // 向右滑关闭
       if (activeSwipeId.value === listTouchStartId) {
         activeSwipeId.value = null
       }
@@ -354,9 +358,23 @@ const onListTouchMove = (e: TouchEvent) => {
   }
 }
 
-const deleteRecord = (id: string) => {
+const onListTouchEnd = () => {
+  listTouchStartId = ''
+}
+
+const deleteRecord = async (id: string) => {
   records.value = records.value.filter(r => r.id !== id)
   activeSwipeId.value = null
+
+  try {
+    const userStore = useUserStore()
+    await fetch(`/api/record?id=${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${userStore.token}` }
+    })
+  } catch (e) {
+    console.error('Delete failed', e)
+  }
 }
 </script>
 
@@ -364,19 +382,16 @@ const deleteRecord = (id: string) => {
   <div class="record-page">
     <header class="page-header">
       <h1 class="page-title">闪记</h1>
-      <Sparkles :size="20" color="#0033A0" />
+      <Sparkles :size="20" color="var(--color-primary)" />
     </header>
 
     <!-- 消息列表区 -->
     <main class="record-list" ref="listRef" @click="activeSwipeId = null">
-      <div 
-        v-for="item in records" 
-        :key="item.id" 
-        class="record-wrapper"
-        @touchstart.passive="onListTouchStart($event, item.id)"
-        @touchmove.passive="onListTouchMove"
-      >
-        
+      <div v-for="item in records" :key="item.id" class="record-wrapper"
+        @touchstart.passive="onListTouchStart($event, item.id)" @touchmove.passive="onListTouchMove"
+        @touchend.passive="onListTouchEnd" @touchcancel.passive="onListTouchEnd"
+        @mousedown="onListTouchStart($event, item.id)" @mousemove="onListTouchMove" @mouseup="onListTouchEnd"
+        @mouseleave="onListTouchEnd">
         <!-- 底部的删除按钮 -->
         <div class="swipe-actions">
           <button class="delete-action-btn" @click.stop="deleteRecord(item.id)">
@@ -385,18 +400,20 @@ const deleteRecord = (id: string) => {
         </div>
 
         <div class="record-card" :class="[item.type, { 'is-swiped': activeSwipeId === item.id }]">
-          
+
           <!-- Loading 状态 -->
           <div v-if="item.type === 'loading'" class="loading-state">
             <Loader2 class="spin-icon" :size="18" />
             <span class="loading-text">✨ AI 正在拆解你的记录...</span>
             <span class="record-time">{{ formatTime(item.createdAt) }}</span>
           </div>
-          
+
           <!-- 记账类型 -->
           <div v-else-if="item.type === 'expense'" class="content-state">
             <div class="card-top">
-              <div class="icon-wrap expense"><Receipt :size="16" /></div>
+              <div class="icon-wrap expense">
+                <Receipt :size="16" />
+              </div>
               <span class="category">{{ item.parsedData?.primaryCategory }}</span>
               <div class="tags-row">
                 <span v-for="tag in item.parsedData?.tags" :key="tag" class="ai-tag">{{ tag }}</span>
@@ -409,11 +426,13 @@ const deleteRecord = (id: string) => {
             </div>
             <p class="raw-text-dimmed">{{ item.rawText }}</p>
           </div>
-          
+
           <!-- 待办类型 -->
           <div v-else-if="item.type === 'todo'" class="content-state">
             <div class="card-top">
-              <div class="icon-wrap todo"><ListTodo :size="16" /></div>
+              <div class="icon-wrap todo">
+                <ListTodo :size="16" />
+              </div>
               <span class="category">待办</span>
               <div class="tags-row">
                 <span class="ai-tag highlight-time">{{ item.parsedData?.deadline }}</span>
@@ -427,7 +446,9 @@ const deleteRecord = (id: string) => {
           <!-- 笔记类型 -->
           <div v-else class="content-state">
             <div class="card-top">
-              <div class="icon-wrap note"><FileText :size="16" /></div>
+              <div class="icon-wrap note">
+                <FileText :size="16" />
+              </div>
               <span class="category">笔记</span>
               <div class="tags-row">
                 <span v-for="tag in item.parsedData?.tags" :key="tag" class="ai-tag">{{ tag }}</span>
@@ -456,51 +477,50 @@ const deleteRecord = (id: string) => {
     <!-- 底部输入框 -->
     <div class="input-area">
       <div class="input-container">
-        <!-- 假输入框 (拦截长按手势) -->
+        <!--
+          假输入框：完全屏蔽系统长按菜单、放大镜
+          负责处理长按语音和点击进入打字模式
+        -->
         <div 
           v-show="!isTypingMode"
           class="magic-input fake-input"
-          @touchstart.passive="handleTouchStart"
-          @touchmove.passive="handleTouchMove"
-          @touchend.passive="handleTouchEnd"
-          @touchcancel.passive="handleTouchEnd"
-          @mousedown="handleTouchStart"
-          @mousemove="handleTouchMove"
-          @mouseup="handleTouchEnd"
-          @mouseleave="handleTouchEnd"
-        >
-          <span class="placeholder-text">发消息或按住说话...</span>
-        </div>
-
-        <!-- 真输入框 (仅打字时出现) -->
-        <input 
-          v-show="isTypingMode"
-          type="text" 
-          v-model="inputText" 
-          ref="inputRef"
-          placeholder="发消息或按住右侧说话..." 
-          @keyup.enter="handleSend"
-          @blur="handleInputBlur"
-          class="magic-input real-input"
-        />
-        
-        <button 
-          class="icon-btn hold-to-talk"
-          @touchstart.prevent="startVoiceRecording"
+          @touchstart.prevent="handleTouchStart"
           @touchmove.prevent="handleTouchMove"
           @touchend.prevent="handleTouchEnd"
           @touchcancel.prevent="handleTouchEnd"
+          @mousedown.prevent="handleTouchStart"
+          @mousemove.prevent="handleTouchMove"
+          @mouseup.prevent="handleTouchEnd"
+          @mouseleave.prevent="handleTouchEnd"
         >
+          <span :class="inputText ? 'has-text' : 'placeholder-text'">
+            {{ inputText || '发消息或按住说话...' }}
+          </span>
+        </div>
+
+        <!-- 真输入框 (仅打字时出现) -->
+        <input
+          v-show="isTypingMode"
+          ref="inputRef"
+          type="text"
+          v-model="inputText"
+          placeholder="发消息或按住说话..."
+          class="magic-input real-input"
+          @blur="handleInputBlur"
+          @keyup.enter="handleSend"
+        />
+
+        <!--
+          右侧语音按钮同样去掉 .passive，理由相同
+        -->
+        <button class="icon-btn hold-to-talk" @touchstart.prevent="startVoiceRecording"
+          @touchmove.prevent="handleTouchMove" @touchend="handleTouchEnd" @touchcancel="handleTouchEnd">
           <AudioLines :size="22" :class="{ 'text-active': isRecording }" />
         </button>
-        
+
         <!-- 发送按钮 -->
-        <button 
-          class="send-btn" 
-          :class="{ 'is-disabled': !inputText.trim() }"
-          @click="handleSend"
-          :disabled="!inputText.trim() || isRecording"
-        >
+        <button class="send-btn" :class="{ 'is-disabled': !inputText.trim() }" @click="handleSend"
+          :disabled="!inputText.trim() || isRecording">
           <Send :size="18" />
         </button>
       </div>
@@ -513,15 +533,15 @@ const deleteRecord = (id: string) => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #f7f8f9;
+  background-color: var(--color-bg-page);
 }
 
 .page-header {
-  padding: 24px 20px 12px;
+  padding: calc(16px + env(safe-area-inset-top)) 20px 12px;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(247, 248, 249, 0.8);
+  background: var(--color-bg-elevated);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   position: sticky;
@@ -532,7 +552,7 @@ const deleteRecord = (id: string) => {
 .page-title {
   font-size: 24px;
   font-weight: 600;
-  color: #191c1d;
+  color: var(--color-text-title);
   letter-spacing: -0.01em;
   margin: 0;
 }
@@ -547,19 +567,71 @@ const deleteRecord = (id: string) => {
   scroll-behavior: smooth;
 }
 
-/* 卡片基础样式 */
-.record-card {
-  background: #ffffff;
+/* 卡片包装器与左滑 */
+.record-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
   border-radius: 20px;
-  padding: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-  border: 1px solid rgba(0,0,0,0.04);
   animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.swipe-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 80px;
+  background: var(--color-danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+}
+
+.delete-action-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.delete-action-btn:active {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* 卡片基础样式 */
+.record-card {
+  position: relative;
+  background: var(--color-bg-surface);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 2;
+}
+
+.record-card.is-swiped {
+  transform: translateX(-80px);
+}
+
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Loading 状态 */
@@ -567,7 +639,7 @@ const deleteRecord = (id: string) => {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #0033A0;
+  color: var(--color-primary);
 }
 
 .spin-icon {
@@ -575,7 +647,9 @@ const deleteRecord = (id: string) => {
 }
 
 @keyframes spin {
-  100% { transform: rotate(360deg); }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-text {
@@ -600,14 +674,26 @@ const deleteRecord = (id: string) => {
   align-items: center;
   justify-content: center;
 }
-.icon-wrap.expense { background: rgba(245, 158, 11, 0.15); color: #d97706; }
-.icon-wrap.todo { background: rgba(16, 185, 129, 0.15); color: #059669; }
-.icon-wrap.note { background: rgba(0, 51, 160, 0.1); color: #0033A0; }
+
+.icon-wrap.expense {
+  background: rgba(var(--color-warning-rgb), 0.15);
+  color: var(--color-warning);
+}
+
+.icon-wrap.todo {
+  background: rgba(var(--color-success-rgb), 0.15);
+  color: var(--color-success);
+}
+
+.icon-wrap.note {
+  background: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
+}
 
 .category {
   font-size: 13px;
   font-weight: 600;
-  color: #4a4a4a;
+  color: var(--color-text-main);
 }
 
 .tags-row {
@@ -620,12 +706,13 @@ const deleteRecord = (id: string) => {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #f0f2f5;
-  color: #666;
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-muted);
 }
+
 .ai-tag.highlight-time {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  background: rgba(var(--color-danger-rgb), 0.1);
+  color: var(--color-danger);
   font-weight: 500;
 }
 
@@ -635,15 +722,25 @@ const deleteRecord = (id: string) => {
   align-items: baseline;
   gap: 2px;
   margin-bottom: 8px;
-  color: #191c1d;
+  color: var(--color-text-title);
 }
-.currency { font-size: 16px; font-weight: 600; }
-.amount-number { font-size: 32px; font-weight: 600; letter-spacing: -0.02em; font-family: 'Inter', sans-serif; }
+
+.currency {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.amount-number {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-family: 'Inter', sans-serif;
+}
 
 .todo-summary {
   font-size: 16px;
   font-weight: 500;
-  color: #191c1d;
+  color: var(--color-text-title);
   margin: 0 0 8px 0;
 }
 
@@ -664,9 +761,9 @@ const deleteRecord = (id: string) => {
 
 /* 输入区 */
 .input-area {
-  padding: 12px 16px 24px; /* 留出底部安全区 */
-  background: #f7f8f9;
-  border-top: 1px solid rgba(0,0,0,0.05);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--color-bg-page);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .input-container {
@@ -684,10 +781,34 @@ const deleteRecord = (id: string) => {
   outline: none;
   background: transparent;
   font-size: 15px;
-  color: #191c1d;
+  color: var(--color-text-title);
   padding: 4px 8px;
 }
-.magic-input::placeholder { color: #a0a5aa; }
+
+.magic-input::placeholder {
+  color: var(--color-text-light);
+}
+
+/* 假输入框的样式补齐 */
+.fake-input {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.placeholder-text {
+  color: var(--color-text-light);
+}
+
+.has-text {
+  color: var(--color-text-title);
+}
 
 .icon-btn {
   width: 32px;
@@ -706,29 +827,33 @@ const deleteRecord = (id: string) => {
 }
 
 .hold-to-talk {
-  touch-action: none; /* 阻止移动端默认滚动，便于滑动判断 */
+  touch-action: none;
 }
 
 .text-active {
-  color: #0033A0;
+  color: var(--color-primary);
 }
 
 .send-btn {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #0033A0;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
   border: none;
 }
-.send-btn:active:not(:disabled) { transform: scale(0.92); }
+
+.send-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
 .send-btn.is-disabled {
   background: #e5e7eb;
-  color: #9ca3af;
+  color: var(--color-text-light);
   cursor: not-allowed;
 }
 
@@ -748,12 +873,13 @@ const deleteRecord = (id: string) => {
   pointer-events: none;
   transition: opacity 0.2s;
 }
+
 .voice-overlay.is-active {
   opacity: 1;
 }
 
 .overlay-content {
-  background: rgba(0,0,0,0.75);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   padding: 32px 24px;
@@ -767,20 +893,21 @@ const deleteRecord = (id: string) => {
 }
 
 .overlay-icon {
-  color: #fff;
+  color: var(--color-bg-surface);
 }
+
 .text-red {
-  color: #ff4d4f;
+  color: var(--color-danger);
 }
 
 .overlay-text {
-  color: rgba(255,255,255,0.9);
+  color: rgba(255, 255, 255, 0.9);
   font-size: 14px;
   margin: 0;
 }
 
 .voice-realtime-text {
-  color: #fff;
+  color: var(--color-bg-surface);
   font-size: 16px;
   font-weight: 500;
   margin-top: 8px;
@@ -789,10 +916,22 @@ const deleteRecord = (id: string) => {
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.15); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.8; }
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
 }
+
 .pulse-anim {
   animation: pulse 1.5s infinite ease-in-out;
 }
@@ -800,15 +939,16 @@ const deleteRecord = (id: string) => {
 .fake-input {
   display: flex;
   align-items: center;
-  color: #9ca3af;
+  color: var(--color-text-light);
   user-select: none;
   -webkit-user-select: none;
 }
+
 .placeholder-text {
   pointer-events: none;
 }
 
 .is-canceling .overlay-content {
-  background: rgba(220, 38, 38, 0.9);
+  background: rgba(var(--color-danger-rgb), 0.9);
 }
 </style>

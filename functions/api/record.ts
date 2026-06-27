@@ -124,3 +124,51 @@ Output exact JSON schema:
     })
   }
 }
+
+export const onRequestGet: PagesFunction<{ DB: any }> = async (context) => {
+  const { request, env } = context
+  const token = request.headers.get('Authorization')
+  if (!token || !token.startsWith('Bearer real-jwt-token-for-')) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const username = token.replace('Bearer real-jwt-token-for-', '')
+
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT * FROM records WHERE username = ? ORDER BY created_at ASC`
+    ).bind(username).all()
+
+    const mapped = results.map((r: any) => ({
+      id: r.id,
+      rawText: r.raw_text,
+      type: r.type,
+      parsedData: JSON.parse(r.parsed_data || '{}'),
+      createdAt: r.created_at
+    }))
+
+    return Response.json(mapped)
+  } catch (err: any) {
+    return Response.json({ error: err.message }, { status: 500 })
+  }
+}
+
+export const onRequestDelete: PagesFunction<{ DB: any }> = async (context) => {
+  const { request, env } = context
+  const token = request.headers.get('Authorization')
+  if (!token || !token.startsWith('Bearer real-jwt-token-for-')) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const username = token.replace('Bearer real-jwt-token-for-', '')
+  
+  const url = new URL(request.url)
+  const id = url.searchParams.get('id')
+  if (!id) return Response.json({ error: 'Missing id' }, { status: 400 })
+
+  try {
+    await env.DB.prepare(`DELETE FROM records WHERE id = ? AND username = ?`)
+      .bind(id, username).run()
+    return Response.json({ success: true })
+  } catch (err: any) {
+    return Response.json({ error: err.message }, { status: 500 })
+  }
+}

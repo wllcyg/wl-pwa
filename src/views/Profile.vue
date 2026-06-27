@@ -205,7 +205,7 @@ onMounted(async () => {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  padding: 32px 16px 80px 16px; /* 底部留白给 Tab */
+  padding: calc(32px + env(safe-area-inset-top)) 16px 80px 16px; /* 底部留白给 Tab */
   background-color: #f8f9fa; /* bg-background */
   min-height: 100%;
 }
@@ -255,7 +255,7 @@ onMounted(async () => {
 .username {
   font-size: 22px;
   font-weight: 600;
-  color: #191c1d;
+  color: var(--color-text-title);
   letter-spacing: -0.01em;
 }
 
@@ -273,7 +273,7 @@ onMounted(async () => {
 
 /* Settings Group */
 .settings-group {
-  background-color: #ffffff; /* bg-surface-container-lowest */
+  background-color: var(--color-bg-surface); /* bg-surface-container-lowest */
   border-radius: 16px; /* rounded-2xl */
   border: 1px solid #edeeef; /* border-surface-container */
   overflow: hidden;
@@ -319,7 +319,7 @@ onMounted(async () => {
 .item-text {
   font-size: 17px; /* text-body-lg */
   font-weight: 400;
-  color: #191c1d; /* text-on-surface */
+  color: var(--color-text-title); /* text-on-surface */
   letter-spacing: -0.01em;
 }
 

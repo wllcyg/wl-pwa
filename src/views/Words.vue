@@ -218,8 +218,8 @@ onMounted(() => {
           <h1 class="display-word">{{ currentWord.word }}</h1>
           <div class="phonetic-row" @click="playAudio(currentWord.word)">
             <span class="utility-phonetic">{{ currentWord.phonetic }}</span>
-            <Loader2 v-if="loadingText === currentWord.word" :size="16" color="#0033A0" class="spin-anim" style="margin-left: 4px;" />
-            <Volume2 v-else :size="16" color="#0033A0" :class="{ 'playing-anim': playingText === currentWord.word }" style="margin-left: 4px;" />
+            <Loader2 v-if="loadingText === currentWord.word" :size="16" color="var(--color-primary)" class="spin-anim" style="margin-left: 4px;" />
+            <Volume2 v-else :size="16" color="var(--color-primary)" :class="{ 'playing-anim': playingText === currentWord.word }" style="margin-left: 4px;" />
           </div>
         </section>
 
@@ -240,8 +240,8 @@ onMounted(() => {
               <p class="english-example" style="flex: 1;">
                 {{ currentWord.englishExample }}
               </p>
-              <Loader2 v-if="loadingText === currentWord.englishExample" :size="16" color="#888C91" class="spin-anim" style="margin-top: 4px;" />
-              <Volume2 v-else :size="16" color="#888C91" :class="{ 'playing-anim': playingText === currentWord.englishExample }" style="margin-top: 4px;" />
+              <Loader2 v-if="loadingText === currentWord.englishExample" :size="16" color="var(--color-text-muted)" class="spin-anim" style="margin-top: 4px;" />
+              <Volume2 v-else :size="16" color="var(--color-text-muted)" :class="{ 'playing-anim': playingText === currentWord.englishExample }" style="margin-top: 4px;" />
             </div>
           </div>
         </section>
@@ -265,8 +265,8 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #FAFAFA; /* Crisp off-white */
-  color: #2C2A29; /* Deep warm grey */
+  background-color: var(--color-bg-page); /* Crisp off-white */
+  color: var(--color-text-main); /* Deep warm grey */
   font-family: 'Inter', sans-serif;
   overflow-x: hidden;
   overflow-y: auto;
@@ -287,7 +287,7 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   height: 40px;
-  color: #0033A0;
+  color: var(--color-primary);
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   z-index: 10;
@@ -296,8 +296,8 @@ onMounted(() => {
 .refresh-spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(0, 51, 160, 0.2);
-  border-top-color: #0033A0;
+  border: 2px solid rgba(var(--color-primary-rgb), 0.2);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -308,7 +308,7 @@ onMounted(() => {
 
 /* Header */
 .book-header {
-  padding: 32px 32px 16px;
+  padding: calc(32px + env(safe-area-inset-top)) 32px 16px;
   display: flex;
   justify-content: flex-end;
   align-items: baseline;
@@ -319,14 +319,14 @@ onMounted(() => {
   font-family: 'JetBrains Mono', monospace;
   font-size: 14px;
   font-weight: 500;
-  color: #0033A0; /* Ultramarine Blue Accent */
+  color: var(--color-primary); /* Ultramarine Blue Accent */
   letter-spacing: 0.05em;
 }
 
 .total-marker {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
-  color: #A0A5AA;
+  color: var(--color-text-light);
 }
 
 /* Page Transition Wrapper */
@@ -358,7 +358,7 @@ onMounted(() => {
   font-style: italic;
   letter-spacing: -0.04em;
   line-height: 1.1;
-  color: #1A1A1A;
+  color: var(--color-text-title);
   margin: 0 0 16px 0;
   /* Soft elegant shadow to pop off the paper */
   text-shadow: 2px 4px 12px rgba(0,0,0,0.04);
@@ -376,7 +376,7 @@ onMounted(() => {
 .utility-phonetic {
   font-family: 'JetBrains Mono', monospace;
   font-size: 1rem;
-  color: #888C91;
+  color: var(--color-text-muted);
   letter-spacing: 0.02em;
 }
 
@@ -384,7 +384,7 @@ onMounted(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #0033A0; /* Blue accent */
+  background-color: var(--color-primary); /* Blue accent */
   position: relative;
 }
 .play-indicator::after {
@@ -394,7 +394,7 @@ onMounted(() => {
   left: -4px;
   right: -4px;
   bottom: -4px;
-  border: 1px solid rgba(0, 51, 160, 0.4);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.4);
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
@@ -428,7 +428,7 @@ onMounted(() => {
 .structural-divider {
   height: 1px;
   width: 40px;
-  background-color: #2C2A29;
+  background-color: var(--color-text-main);
   margin-bottom: 32px;
 }
 
@@ -441,7 +441,7 @@ onMounted(() => {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   text-transform: uppercase;
-  color: #0033A0;
+  color: var(--color-primary);
   letter-spacing: 0.1em;
   margin-bottom: 12px;
 }
@@ -449,7 +449,7 @@ onMounted(() => {
 .translation-text {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #2C2A29;
+  color: var(--color-text-main);
   margin: 0;
   line-height: 1.4;
   letter-spacing: 0.02em;
@@ -469,7 +469,7 @@ onMounted(() => {
   top: 4px;
   bottom: 4px;
   width: 2px;
-  background-color: #0033A0;
+  background-color: var(--color-primary);
   opacity: 0.8;
 }
 
@@ -477,7 +477,7 @@ onMounted(() => {
   font-family: 'Playfair Display', serif;
   font-size: 1.15rem;
   line-height: 1.8;
-  color: #4A4A4A;
+  color: var(--color-text-main);
   margin: 0 0 16px 0;
   text-align: justify;
 }
@@ -486,7 +486,7 @@ onMounted(() => {
   font-family: 'Inter', sans-serif;
   font-size: 0.9rem;
   line-height: 1.6;
-  color: #888C91;
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -501,7 +501,7 @@ onMounted(() => {
 .skeleton-header {
   width: 60px;
   height: 16px;
-  background: #ECECEC;
+  background: var(--color-bg-surface-hover);
   align-self: flex-end;
   border-radius: 4px;
   margin-bottom: 8vh;
@@ -511,7 +511,7 @@ onMounted(() => {
 .skeleton-hero {
   width: 70%;
   height: 64px;
-  background: #ECECEC;
+  background: var(--color-bg-surface-hover);
   border-radius: 8px;
   margin-bottom: 16px;
   animation: pulse-bg 1.5s infinite;
@@ -520,7 +520,7 @@ onMounted(() => {
 .skeleton-phonetic {
   width: 40%;
   height: 20px;
-  background: #ECECEC;
+  background: var(--color-bg-surface-hover);
   border-radius: 4px;
   margin-bottom: 60px;
   animation: pulse-bg 1.5s infinite;
@@ -529,14 +529,14 @@ onMounted(() => {
 .skeleton-divider {
   width: 40px;
   height: 1px;
-  background: #ECECEC;
+  background: var(--color-bg-surface-hover);
   margin-bottom: 32px;
 }
 
 .skeleton-text {
   width: 100%;
   height: 16px;
-  background: #ECECEC;
+  background: var(--color-bg-surface-hover);
   border-radius: 4px;
   margin-bottom: 12px;
   animation: pulse-bg 1.5s infinite;
@@ -556,6 +556,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #888C91;
+  color: var(--color-text-muted);
 }
 </style>
