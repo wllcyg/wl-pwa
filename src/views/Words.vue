@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useSwipe } from '@vueuse/core'
-import { Volume2, Loader2, Bookmark, CheckCircle2 } from 'lucide-vue-next'
+import { Volume2, Loader2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 // 移除默认的 Loading 占位，使用真实的 Loading 状态
 const wordsList = ref<any[]>([])
 const isLoading = ref(true)
-const isRevealed = ref(false)
 
 const currentIndex = ref(0)
 const currentWord = computed(() => wordsList.value[currentIndex.value])
@@ -31,8 +30,6 @@ useSwipe(swipeContainerRef, {
 const changeWord = (newIndex: number) => {
   if (newIndex === currentIndex.value) return
   isTransitioning.value = true
-  // 切换单词时，重置遮罩
-  isRevealed.value = false
   
   setTimeout(() => {
     currentIndex.value = newIndex
@@ -128,7 +125,6 @@ const fetchWords = async () => {
           englishExample: item.english_example
         }))
         currentIndex.value = 0
-        isRevealed.value = false
       }
     }
   } catch (err) {
@@ -157,20 +153,6 @@ import { onMounted } from 'vue'
 onMounted(() => {
   fetchWords()
 })
-
-const markAsMastered = () => {
-  toast.success('已标记为掌握，将减少出现频率')
-  // TODO: Call API to update D1 DB state
-  // 如果还有下一个，就自动跳到下一个
-  if (currentIndex.value < wordsList.value.length - 1) {
-    changeWord(currentIndex.value + 1)
-  }
-}
-
-const toggleBookmark = () => {
-  toast.success('已加入生词本')
-  // TODO: Call API to bookmark
-}
 </script>
 
 <template>
@@ -232,56 +214,29 @@ const toggleBookmark = () => {
           </div>
         </section>
 
-        <!-- Flashcard Area: Tap to reveal -->
-        <div class="reveal-container" @click="isRevealed = true">
-          <div v-if="!isRevealed" class="reveal-overlay">
-            <span class="reveal-text">点击屏幕，查看释义</span>
+        <!-- Bottom Half: The Meaning & Art Book Literature -->
+        <section class="word-details">
+          <div class="structural-divider"></div>
+          
+          <div class="definition-block">
+            <span class="pos-tag">{{ currentWord.pos }}</span>
+            <h2 class="translation-text">{{ currentWord.translation }}</h2>
           </div>
 
-          <!-- Bottom Half: The Meaning & Art Book Literature -->
-          <section class="word-details" :class="{ 'blurred-content': !isRevealed }">
-            <div class="structural-divider"></div>
-            
-            <div class="definition-block">
-              <span class="pos-tag">{{ currentWord.pos }}</span>
-              <h2 class="translation-text">{{ currentWord.translation }}</h2>
-            </div>
-
-            <div class="literature-block">
-              <p class="literature-example">
-                {{ currentWord.literatureStyleExample }}
+          <div class="literature-block">
+            <p class="literature-example">
+              {{ currentWord.literatureStyleExample }}
+            </p>
+            <div style="display: flex; gap: 8px; align-items: flex-start; cursor: pointer;" @click="playAudio(currentWord.englishExample)">
+              <p class="english-example" style="flex: 1;">
+                {{ currentWord.englishExample }}
               </p>
-              <div style="display: flex; gap: 8px; align-items: flex-start; cursor: pointer;" @click.stop="playAudio(currentWord.englishExample)">
-                <p class="english-example" style="flex: 1;">
-                  {{ currentWord.englishExample }}
-                </p>
-                <Loader2 v-if="loadingText === currentWord.englishExample" :size="16" color="#888C91" class="spin-anim" style="margin-top: 4px;" />
-                <Volume2 v-else :size="16" color="#888C91" :class="{ 'playing-anim': playingText === currentWord.englishExample }" style="margin-top: 4px;" />
-              </div>
+              <Loader2 v-if="loadingText === currentWord.englishExample" :size="16" color="#888C91" class="spin-anim" style="margin-top: 4px;" />
+              <Volume2 v-else :size="16" color="#888C91" :class="{ 'playing-anim': playingText === currentWord.englishExample }" style="margin-top: 4px;" />
             </div>
-
-            <!-- Action Buttons (Only show when revealed) -->
-            <div class="action-bar">
-              <button class="action-btn outline" @click.stop="toggleBookmark">
-                <Bookmark :size="18" /> 加入生词本
-              </button>
-              <button class="action-btn primary" @click.stop="markAsMastered">
-                <CheckCircle2 :size="18" /> 已掌握
-              </button>
-            </div>
-          </section>
-        </div>
+          </div>
+        </section>
       </main>
-
-      <!-- Pagination Dots -->
-      <div class="pagination-dots">
-        <span 
-          v-for="(_, idx) in wordsList" 
-          :key="idx" 
-          class="dot" 
-          :class="{ active: idx === currentIndex }"
-        ></span>
-      </div>
     </template>
 
     <!-- Empty State -->
@@ -524,119 +479,6 @@ const toggleBookmark = () => {
   line-height: 1.6;
   color: #888C91;
   margin: 0;
-}
-
-/* Flashcard Reveal Mode */
-.reveal-container {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.reveal-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(to bottom, rgba(250,250,250,0) 0%, rgba(250,250,250,0.8) 20%, rgba(250,250,250,0.95) 100%);
-}
-
-.reveal-text {
-  font-size: 14px;
-  color: #0033A0;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  padding: 12px 24px;
-  border-radius: 20px;
-  background: rgba(0, 51, 160, 0.05);
-  animation: pulse-soft 2s infinite;
-}
-
-@keyframes pulse-soft {
-  0% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.02); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.8; }
-}
-
-.blurred-content {
-  filter: blur(8px);
-  opacity: 0.3;
-  pointer-events: none;
-  user-select: none;
-  transition: filter 0.4s ease, opacity 0.4s ease;
-}
-
-/* Action Buttons */
-.action-bar {
-  margin-top: 40px;
-  display: flex;
-  gap: 16px;
-  animation: fade-in-up 0.4s ease forwards;
-}
-
-@keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.action-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 14px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s ease;
-}
-
-.action-btn.outline {
-  background: #F0F2F5;
-  color: #4A4A4A;
-}
-
-.action-btn.primary {
-  background: #0033A0;
-  color: #FFFFFF;
-}
-
-.action-btn:active {
-  transform: scale(0.96);
-}
-
-/* Pagination Dots */
-.pagination-dots {
-  position: absolute;
-  bottom: 24px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-}
-
-.pagination-dots .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: #D1D5DB;
-  transition: all 0.3s ease;
-}
-
-.pagination-dots .dot.active {
-  background-color: #0033A0;
-  width: 16px;
-  border-radius: 4px;
 }
 
 /* Skeleton Loading */
