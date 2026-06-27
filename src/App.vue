@@ -65,9 +65,9 @@ onMounted(() => {
 
 <template>
   <div class="app-root">
-    <router-view v-slot="{ Component, route }">
+    <router-view v-slot="{ Component }">
       <vue-page-stack>
-        <component :is="Component" :key="route.fullPath" />
+        <component :is="Component" />
       </vue-page-stack>
     </router-view>
   </div>
