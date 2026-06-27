@@ -61,18 +61,29 @@ export default {
       let wordData: any;
       let responseText = '';
       try {
-        const aiResponse = await env.AI.run('@cf/moonshotai/kimi-k2.6', {
-          messages: [{ role: 'user', content: prompt }]
+        const apiKey = 'sk-9eba23ea436b4603b40260f79f86fe0c';
+        const aiResponse = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'qwen3.7-plus',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.2
+          })
         });
         
-        // Log full object to debug Kimi's specific return format
-        responseText = JSON.stringify(aiResponse);
-        const actualText = 
-          (aiResponse as any).response || 
-          (aiResponse as any).result?.response || 
-          (aiResponse as any).choices?.[0]?.message?.content || 
-          '';
+        if (!aiResponse.ok) {
+          const errTxt = await aiResponse.text();
+          throw new Error(`API failed: ${aiResponse.status} ${errTxt}`);
+        }
         
+        const aiData = await aiResponse.json();
+        responseText = JSON.stringify(aiData);
+        
+        const actualText = aiData.choices?.[0]?.message?.content || '';
         if (!actualText) throw new Error("Could not find text in AI response");
         
         let cleaned = actualText.replace(/```json/g, '').replace(/```/g, '').trim();

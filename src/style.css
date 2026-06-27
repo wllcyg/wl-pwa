@@ -21,6 +21,12 @@
   padding: 0;
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  /* 全局禁用 iOS 橡皮筋回弹效果 */
+  overscroll-behavior: none;
+}
+
+html, body {
+  overscroll-behavior: none;
 }
 
 body {

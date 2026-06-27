@@ -24,6 +24,12 @@ const routes = [
         name: 'Profile',
         component: () => import('../views/Profile.vue'),
         meta: { keepAlive: true }
+      },
+      {
+        path: 'record',
+        name: 'Record',
+        component: () => import('../views/Record.vue'),
+        meta: { keepAlive: true }
       }
     ]
   },

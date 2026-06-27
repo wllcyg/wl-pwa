@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BookOpen, User, Bell } from '@lucide/vue'
+import { BookOpen, User, Bell, Sparkles } from '@lucide/vue'
 import { useRoute } from 'vue-router'
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '../store/user'
@@ -91,6 +91,13 @@ const enablePush = async () => {
         <span>单词</span>
       </router-link>
       
+      <router-link to="/record" replace class="tab-item record-tab" :class="{ active: route.path === '/record' }">
+        <div class="magic-btn">
+          <Sparkles :size="22" :stroke-width="route.path === '/record' ? 2.5 : 2" />
+        </div>
+        <span>闪记</span>
+      </router-link>
+      
       <router-link to="/profile" replace class="tab-item" :class="{ active: route.path === '/profile' }">
         <User :size="24" :stroke-width="route.path === '/profile' ? 2.5 : 2" />
         <span>我的</span>
@@ -164,6 +171,31 @@ const enablePush = async () => {
 
 .tab-item.active {
   color: var(--color-primary);
+}
+
+.record-tab {
+  position: relative;
+  top: -12px;
+}
+
+.magic-btn {
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  margin-bottom: 2px;
+  border: 1px solid rgba(0,0,0,0.03);
+}
+.record-tab.active .magic-btn {
+  background: var(--color-primary);
+  color: #fff;
 }
 
 /* Prompt Modal */

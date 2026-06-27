@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { useUserStore } from '../store/user'
 import { useRouter } from 'vue-router'
-import { Moon, Info, ChevronRight, Bell } from '@lucide/vue'
+import { Moon, Info, ChevronRight, Bell, Loader2 } from '@lucide/vue'
 import { ref, onMounted } from 'vue'
+import { toast } from 'vue-sonner'
 import packageJson from '../../package.json'
 
 const userStore = useUserStore()
@@ -22,6 +23,33 @@ const toggleTheme = () => {
 
 const goToEditProfile = () => {
   router.push('/edit-profile')
+}
+
+// 手动检查更新
+const checkingUpdate = ref(false)
+const checkForUpdate = async () => {
+  if (!('serviceWorker' in navigator)) {
+    toast.error('当前环境不支持更新检查')
+    return
+  }
+  
+  if (checkingUpdate.value) return
+  checkingUpdate.value = true
+  
+  try {
+    const reg = await navigator.serviceWorker.getRegistration()
+    if (reg) {
+      await reg.update()
+      toast.success('检查完毕，已经是最新版本')
+    } else {
+      toast.error('未找到 Service Worker，可能在开发环境下')
+    }
+  } catch (err) {
+    console.error(err)
+    toast.error('检查更新失败，请检查网络')
+  } finally {
+    checkingUpdate.value = false
+  }
 }
 
 // Push Notifications
@@ -151,12 +179,13 @@ onMounted(async () => {
           </button>
         </li>
         <!-- 版本号 -->
-        <li class="setting-item">
+        <li class="setting-item" @click="checkForUpdate">
           <div class="item-left">
             <Info :size="22" class="icon" />
-            <span class="item-text">当前版本</span>
+            <span class="item-text">检查更新</span>
           </div>
-          <span class="version-text">{{ appVersion }}</span>
+          <Loader2 v-if="checkingUpdate" class="spin-icon" :size="18" />
+          <span v-else class="version-text">{{ appVersion }}</span>
         </li>
       </ul>
     </section>
@@ -357,5 +386,19 @@ onMounted(async () => {
 .logout-button:active {
   background-color: rgba(255, 218, 214, 0.6); /* hover:bg-error-container/40 */
   transform: scale(0.98); /* active:scale-[0.98] */
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+  color: var(--color-text-muted);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
