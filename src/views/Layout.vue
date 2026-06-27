@@ -85,12 +85,12 @@ const enablePush = async () => {
 
     <!-- 底部 Tab 导航栏 -->
     <nav class="bottom-tab-bar">
-      <router-link to="/words" class="tab-item" :class="{ active: route.path === '/words' }">
+      <router-link to="/words" replace class="tab-item" :class="{ active: route.path === '/words' }">
         <BookOpen :size="24" :stroke-width="route.path === '/words' ? 2.5 : 2" />
         <span>单词</span>
       </router-link>
       
-      <router-link to="/profile" class="tab-item" :class="{ active: route.path === '/profile' }">
+      <router-link to="/profile" replace class="tab-item" :class="{ active: route.path === '/profile' }">
         <User :size="24" :stroke-width="route.path === '/profile' ? 2.5 : 2" />
         <span>我的</span>
       </router-link>

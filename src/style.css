@@ -27,8 +27,8 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: var(--color-bg);
   color: var(--color-text-main);
-  /* 移动端防抖动与滚动溢出控制 */
-  overscroll-behavior-y: none;
+  /* 移动端防抖动与滚动溢出控制，阻止浏览器的侧滑返回手势 */
+  overscroll-behavior: none;
   overflow-x: hidden;
   /* 移除 body 的 overflow: hidden，解决 iOS PWA 首次启动时键盘无法弹出的焦点 bug */
   line-height: 1.5;
