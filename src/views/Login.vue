@@ -65,7 +65,7 @@ const handleSubmit = async () => {
       userStore.setUserInfo(data.user)
     }
     toast.success(isLoginMode.value ? '登录成功，欢迎回来！' : '注册成功！')
-    router.push('/words')
+    router.replace('/words')
   } catch (error: any) {
     toast.error(error.message || '网络或服务器错误')
   } finally {

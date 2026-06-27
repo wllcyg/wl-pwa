@@ -1,21 +1,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useSwipe } from '@vueuse/core'
-import { Volume2, Loader2 } from 'lucide-vue-next'
+import { Volume2, Loader2, Bookmark, CheckCircle2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
-// Initial state with a loading placeholder
-const wordsList = ref([
-  {
-    id: 0,
-    word: 'Loading...',
-    phonetic: '',
-    translation: '正在召唤 AI 生成优美例句...',
-    pos: '',
-    literatureStyleExample: '',
-    englishExample: ''
-  }
-])
+// 移除默认的 Loading 占位，使用真实的 Loading 状态
+const wordsList = ref<any[]>([])
+const isLoading = ref(true)
+const isRevealed = ref(false)
 
 const currentIndex = ref(0)
 const currentWord = computed(() => wordsList.value[currentIndex.value])
@@ -23,31 +15,7 @@ const isTransitioning = ref(false)
 
 const swipeContainerRef = ref<HTMLElement | null>(null)
 
-import { onMounted } from 'vue'
-
-onMounted(async () => {
-  try {
-    const res = await fetch('/api/daily-words')
-    if (res.ok) {
-      const data = await res.json()
-      if (data && data.length > 0) {
-        // Map database fields to frontend keys
-        wordsList.value = data.map((item: any) => ({
-          id: item.id,
-          word: item.word,
-          phonetic: item.phonetic,
-          translation: item.translation,
-          pos: item.pos,
-          literatureStyleExample: item.literature_example,
-          englishExample: item.english_example
-        }))
-        currentIndex.value = 0
-      }
-    }
-  } catch (err) {
-    console.error('Failed to fetch daily words:', err)
-  }
-})
+// 移除了原始的 onMounted 里的 fetch 逻辑，全部收敛到 fetchWords 中
 
 useSwipe(swipeContainerRef, {
   threshold: 50,
@@ -63,6 +31,9 @@ useSwipe(swipeContainerRef, {
 const changeWord = (newIndex: number) => {
   if (newIndex === currentIndex.value) return
   isTransitioning.value = true
+  // 切换单词时，重置遮罩
+  isRevealed.value = false
+  
   setTimeout(() => {
     currentIndex.value = newIndex
     isTransitioning.value = false
@@ -141,6 +112,7 @@ const onTouchMove = (e: TouchEvent) => {
 }
 
 const fetchWords = async () => {
+  isLoading.value = true
   try {
     const res = await fetch('/api/daily-words')
     if (res.ok) {
@@ -156,10 +128,13 @@ const fetchWords = async () => {
           englishExample: item.english_example
         }))
         currentIndex.value = 0
+        isRevealed.value = false
       }
     }
   } catch (err) {
     console.error('Failed to fetch daily words:', err)
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -177,9 +152,25 @@ const onTouchEnd = async () => {
   touchCurrentY.value = 0
 }
 
+import { onMounted } from 'vue'
+
 onMounted(() => {
   fetchWords()
 })
+
+const markAsMastered = () => {
+  toast.success('已标记为掌握，将减少出现频率')
+  // TODO: Call API to update D1 DB state
+  // 如果还有下一个，就自动跳到下一个
+  if (currentIndex.value < wordsList.value.length - 1) {
+    changeWord(currentIndex.value + 1)
+  }
+}
+
+const toggleBookmark = () => {
+  toast.success('已加入生词本')
+  // TODO: Call API to bookmark
+}
 </script>
 
 <template>
@@ -202,54 +193,101 @@ onMounted(() => {
       <span v-else class="pull-text">{{ pullDistance >= 60 ? '释放刷新' : '下拉刷新' }}</span>
     </div>
 
-    <!-- Top Index Marker (Ultramarine Blue) -->
-    <header 
-      class="book-header" 
-      :style="{ transform: `translateY(${isPulling ? pullDistance : 0}px)`, transition: isPulling ? 'none' : 'transform 0.3s ease' }"
-    >
-      <span class="index-marker">
-        No. {{ String(currentIndex + 1).padStart(2, '0') }}
-      </span>
-      <span class="total-marker">/ {{ String(wordsList.length).padStart(2, '0') }}</span>
-    </header>
+    <!-- Skeleton Loading State -->
+    <div v-if="isLoading" class="skeleton-wrapper">
+      <div class="skeleton-header"></div>
+      <div class="skeleton-hero"></div>
+      <div class="skeleton-phonetic"></div>
+      <div class="skeleton-divider"></div>
+      <div class="skeleton-text short"></div>
+      <div class="skeleton-text title"></div>
+      <div class="skeleton-text"></div>
+      <div class="skeleton-text"></div>
+      <div class="skeleton-text" style="width: 60%"></div>
+    </div>
 
-    <!-- Content Area with Transition -->
-    <main class="page-content" :class="{ 'page-transitioning': isTransitioning }">
-      
-      <!-- Top Half: The Word -->
-      <section class="word-hero">
-        <h1 class="display-word">{{ currentWord.word }}</h1>
-        <div class="phonetic-row" @click="playAudio(currentWord.word)">
-          <span class="utility-phonetic">{{ currentWord.phonetic }}</span>
-          <Loader2 v-if="loadingText === currentWord.word" :size="16" color="#0033A0" class="spin-anim" style="margin-left: 4px;" />
-          <Volume2 v-else :size="16" color="#0033A0" :class="{ 'playing-anim': playingText === currentWord.word }" style="margin-left: 4px;" />
-        </div>
-      </section>
+    <!-- Actual Content -->
+    <template v-else-if="wordsList.length > 0">
+      <!-- Top Index Marker (Ultramarine Blue) -->
+      <header 
+        class="book-header" 
+        :style="{ transform: `translateY(${isPulling ? pullDistance : 0}px)`, transition: isPulling ? 'none' : 'transform 0.3s ease' }"
+      >
+        <span class="index-marker">
+          No. {{ String(currentIndex + 1).padStart(2, '0') }}
+        </span>
+        <span class="total-marker">/ {{ String(wordsList.length).padStart(2, '0') }}</span>
+      </header>
 
-      <!-- Bottom Half: The Meaning & Art Book Literature -->
-      <section class="word-details">
-        <div class="structural-divider"></div>
+      <!-- Content Area with Transition -->
+      <main class="page-content" :class="{ 'page-transitioning': isTransitioning }">
         
-        <div class="definition-block">
-          <span class="pos-tag">{{ currentWord.pos }}</span>
-          <h2 class="translation-text">{{ currentWord.translation }}</h2>
-        </div>
-
-        <div class="literature-block">
-          <p class="literature-example">
-            {{ currentWord.literatureStyleExample }}
-          </p>
-          <div style="display: flex; gap: 8px; align-items: flex-start; cursor: pointer;" @click="playAudio(currentWord.englishExample)">
-            <p class="english-example" style="flex: 1;">
-              {{ currentWord.englishExample }}
-            </p>
-            <Loader2 v-if="loadingText === currentWord.englishExample" :size="16" color="#888C91" class="spin-anim" style="margin-top: 4px;" />
-            <Volume2 v-else :size="16" color="#888C91" :class="{ 'playing-anim': playingText === currentWord.englishExample }" style="margin-top: 4px;" />
+        <!-- Top Half: The Word -->
+        <section class="word-hero">
+          <h1 class="display-word">{{ currentWord.word }}</h1>
+          <div class="phonetic-row" @click="playAudio(currentWord.word)">
+            <span class="utility-phonetic">{{ currentWord.phonetic }}</span>
+            <Loader2 v-if="loadingText === currentWord.word" :size="16" color="#0033A0" class="spin-anim" style="margin-left: 4px;" />
+            <Volume2 v-else :size="16" color="#0033A0" :class="{ 'playing-anim': playingText === currentWord.word }" style="margin-left: 4px;" />
           </div>
+        </section>
+
+        <!-- Flashcard Area: Tap to reveal -->
+        <div class="reveal-container" @click="isRevealed = true">
+          <div v-if="!isRevealed" class="reveal-overlay">
+            <span class="reveal-text">点击屏幕，查看释义</span>
+          </div>
+
+          <!-- Bottom Half: The Meaning & Art Book Literature -->
+          <section class="word-details" :class="{ 'blurred-content': !isRevealed }">
+            <div class="structural-divider"></div>
+            
+            <div class="definition-block">
+              <span class="pos-tag">{{ currentWord.pos }}</span>
+              <h2 class="translation-text">{{ currentWord.translation }}</h2>
+            </div>
+
+            <div class="literature-block">
+              <p class="literature-example">
+                {{ currentWord.literatureStyleExample }}
+              </p>
+              <div style="display: flex; gap: 8px; align-items: flex-start; cursor: pointer;" @click.stop="playAudio(currentWord.englishExample)">
+                <p class="english-example" style="flex: 1;">
+                  {{ currentWord.englishExample }}
+                </p>
+                <Loader2 v-if="loadingText === currentWord.englishExample" :size="16" color="#888C91" class="spin-anim" style="margin-top: 4px;" />
+                <Volume2 v-else :size="16" color="#888C91" :class="{ 'playing-anim': playingText === currentWord.englishExample }" style="margin-top: 4px;" />
+              </div>
+            </div>
+
+            <!-- Action Buttons (Only show when revealed) -->
+            <div class="action-bar">
+              <button class="action-btn outline" @click.stop="toggleBookmark">
+                <Bookmark :size="18" /> 加入生词本
+              </button>
+              <button class="action-btn primary" @click.stop="markAsMastered">
+                <CheckCircle2 :size="18" /> 已掌握
+              </button>
+            </div>
+          </section>
         </div>
-      </section>
-      
-    </main>
+      </main>
+
+      <!-- Pagination Dots -->
+      <div class="pagination-dots">
+        <span 
+          v-for="(_, idx) in wordsList" 
+          :key="idx" 
+          class="dot" 
+          :class="{ active: idx === currentIndex }"
+        ></span>
+      </div>
+    </template>
+
+    <!-- Empty State -->
+    <div v-else class="empty-state">
+      <p>今日暂无单词数据</p>
+    </div>
   </div>
 </template>
 
@@ -486,5 +524,187 @@ onMounted(() => {
   line-height: 1.6;
   color: #888C91;
   margin: 0;
+}
+
+/* Flashcard Reveal Mode */
+.reveal-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.reveal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to bottom, rgba(250,250,250,0) 0%, rgba(250,250,250,0.8) 20%, rgba(250,250,250,0.95) 100%);
+}
+
+.reveal-text {
+  font-size: 14px;
+  color: #0033A0;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  padding: 12px 24px;
+  border-radius: 20px;
+  background: rgba(0, 51, 160, 0.05);
+  animation: pulse-soft 2s infinite;
+}
+
+@keyframes pulse-soft {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+.blurred-content {
+  filter: blur(8px);
+  opacity: 0.3;
+  pointer-events: none;
+  user-select: none;
+  transition: filter 0.4s ease, opacity 0.4s ease;
+}
+
+/* Action Buttons */
+.action-bar {
+  margin-top: 40px;
+  display: flex;
+  gap: 16px;
+  animation: fade-in-up 0.4s ease forwards;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.action-btn.outline {
+  background: #F0F2F5;
+  color: #4A4A4A;
+}
+
+.action-btn.primary {
+  background: #0033A0;
+  color: #FFFFFF;
+}
+
+.action-btn:active {
+  transform: scale(0.96);
+}
+
+/* Pagination Dots */
+.pagination-dots {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pagination-dots .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #D1D5DB;
+  transition: all 0.3s ease;
+}
+
+.pagination-dots .dot.active {
+  background-color: #0033A0;
+  width: 16px;
+  border-radius: 4px;
+}
+
+/* Skeleton Loading */
+.skeleton-wrapper {
+  padding: 32px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-header {
+  width: 60px;
+  height: 16px;
+  background: #ECECEC;
+  align-self: flex-end;
+  border-radius: 4px;
+  margin-bottom: 8vh;
+  animation: pulse-bg 1.5s infinite;
+}
+
+.skeleton-hero {
+  width: 70%;
+  height: 64px;
+  background: #ECECEC;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  animation: pulse-bg 1.5s infinite;
+}
+
+.skeleton-phonetic {
+  width: 40%;
+  height: 20px;
+  background: #ECECEC;
+  border-radius: 4px;
+  margin-bottom: 60px;
+  animation: pulse-bg 1.5s infinite;
+}
+
+.skeleton-divider {
+  width: 40px;
+  height: 1px;
+  background: #ECECEC;
+  margin-bottom: 32px;
+}
+
+.skeleton-text {
+  width: 100%;
+  height: 16px;
+  background: #ECECEC;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  animation: pulse-bg 1.5s infinite;
+}
+
+.skeleton-text.short { width: 30%; margin-bottom: 20px; }
+.skeleton-text.title { width: 80%; height: 24px; margin-bottom: 40px; }
+
+@keyframes pulse-bg {
+  0% { opacity: 0.6; }
+  50% { opacity: 0.3; }
+  100% { opacity: 0.6; }
+}
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888C91;
 }
 </style>
