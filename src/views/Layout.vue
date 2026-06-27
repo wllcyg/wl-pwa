@@ -76,10 +76,11 @@ const enablePush = async () => {
     <!-- 顶部和中间内容区：由子路由接管 -->
     <main class="main-content">
       <router-view v-slot="{ Component, route }">
-        <keep-alive>
-          <component :is="Component" v-if="route.meta.keepAlive" :key="route.path" />
-        </keep-alive>
-        <component :is="Component" v-if="!route.meta.keepAlive" :key="route.path" />
+        <transition name="fade" mode="out-in">
+          <keep-alive>
+            <component :is="Component" :key="route.path" />
+          </keep-alive>
+        </transition>
       </router-view>
     </main>
 

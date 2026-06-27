@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Toaster, toast } from 'vue-sonner'
-import { watch, ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { watch, onMounted } from 'vue'
 import { useUserStore } from './store/user'
 
 // 这里的 virtual 模块由 vite-plugin-pwa 自动生成
@@ -42,9 +41,7 @@ watch(needRefresh, (isNeed) => {
   }
 })
 
-const router = useRouter()
 const userStore = useUserStore()
-const transitionName = ref('slide-left')
 
 onMounted(() => {
   // Activity Ping for Smart Push
@@ -63,40 +60,15 @@ onMounted(() => {
   }
 })
 
-// 定义路由层级，模拟 iOS 的推进和返回
-const getDepth = (path: string) => {
-  if (path === '/login') return 0
-  if (path === '/' || path === '/words' || path === '/profile') return 1
-  if (path === '/edit-profile') return 2
-  return path.split('/').length
-}
 
-let isFirstLoad = true
-
-router.afterEach((to, from) => {
-  if (isFirstLoad) {
-    isFirstLoad = false
-    transitionName.value = '' // 初次加载无动画，避免 iOS PWA 初始渲染的输入框焦点 bug
-    return
-  }
-
-  const toDepth = getDepth(to.path)
-  const fromDepth = getDepth(from.path)
-  // 当层级相同时（例如在 Tab 间切换），为了避免奇怪的左右横跳，也默认使用简单的 fade 或者静止
-  if (toDepth === fromDepth) {
-    transitionName.value = 'fade'
-  } else {
-    transitionName.value = toDepth < fromDepth ? 'slide-right' : 'slide-left'
-  }
-})
 </script>
 
 <template>
   <div class="app-root">
-    <router-view v-slot="{ Component }">
-      <transition :name="transitionName">
-        <component :is="Component" />
-      </transition>
+    <router-view v-slot="{ Component, route }">
+      <vue-page-stack>
+        <component :is="Component" :key="route.fullPath" />
+      </vue-page-stack>
     </router-view>
   </div>
   
@@ -123,35 +95,5 @@ router.afterEach((to, from) => {
   height: 100%;
   background: var(--color-bg); /* 页面底色 */
   box-shadow: -4px 0 16px rgba(0,0,0,0.05); /* 左侧阴影，模拟纸张叠放 */
-}
-
-/* =========== iOS 滑动动画核心 =========== */
-.slide-left-enter-active,
-.slide-left-leave-active,
-.slide-right-enter-active,
-.slide-right-leave-active {
-  transition: transform 0.45s cubic-bezier(0.36, 0.66, 0.04, 1), 
-              opacity 0.45s cubic-bezier(0.36, 0.66, 0.04, 1);
-  will-change: transform, opacity;
-}
-
-/* 前进（推入）：新页面从右边进来 */
-.slide-left-enter-from {
-  transform: translateX(100%);
-}
-/* 前进（推入）：老页面往左边退去，并变暗 */
-.slide-left-leave-to {
-  transform: translateX(-25%);
-  opacity: 0.4;
-}
-
-/* 后退（拉出）：底下老页面从左边 -25% 恢复 */
-.slide-right-enter-from {
-  transform: translateX(-25%);
-  opacity: 0.4;
-}
-/* 后退（拉出）：当前页面往右边 100% 退出 */
-.slide-right-leave-to {
-  transform: translateX(100%);
 }
 </style>
