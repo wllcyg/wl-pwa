@@ -55,7 +55,7 @@ html, body {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: var(--color-bg);
+  background-color: var(--color-bg-page);
   color: var(--color-text-main);
   /* 移动端防抖动与滚动溢出控制，阻止浏览器的侧滑返回手势 */
   overscroll-behavior: none;

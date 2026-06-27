@@ -30,7 +30,7 @@ const handleLogout = () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: var(--color-bg);
+  background-color: var(--color-bg-page);
 }
 
 .home-header {
@@ -40,7 +40,7 @@ const handleLogout = () => {
   align-items: center;
   padding: 0 20px;
   border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-surface);
+  background-color: var(--color-bg-surface);
 }
 
 .user-avatar {

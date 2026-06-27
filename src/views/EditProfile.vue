@@ -162,7 +162,7 @@ const handleSave = async () => {
 <style scoped>
 .edit-profile-page {
   min-height: 100dvh;
-  background-color: var(--color-bg);
+  background-color: var(--color-bg-page);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -176,7 +176,7 @@ const handleSave = async () => {
   justify-content: space-between;
   height: 56px;
   padding: 0 16px;
-  background-color: var(--color-surface);
+  background-color: var(--color-bg-surface);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -302,7 +302,7 @@ const handleSave = async () => {
   padding: 14px 16px;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  background-color: var(--color-surface);
+  background-color: var(--color-bg-surface);
   font-size: 16px;
   color: var(--color-text-main);
   outline: none;

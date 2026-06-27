@@ -123,7 +123,7 @@ const submitText = computed(() => isLoginMode.value ? '登录' : '注册账号')
   display: flex;
   flex-direction: column;
   padding: 24px;
-  background-color: var(--color-bg);
+  background-color: var(--color-bg-page);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -186,7 +186,7 @@ const submitText = computed(() => isLoginMode.value ? '登录' : '注册账号')
   padding: 12px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  background-color: var(--color-surface);
+  background-color: var(--color-bg-surface);
   font-size: 15px;
   color: var(--color-text-main);
   outline: none;
@@ -195,8 +195,7 @@ const submitText = computed(() => isLoginMode.value ? '登录' : '注册账号')
 
 .input-group input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
-  /* 适配现在的蓝色 */
+  box-shadow: 0 0 0 1px rgba(var(--color-primary-rgb), 0.15);
 }
 
 .submit-btn {

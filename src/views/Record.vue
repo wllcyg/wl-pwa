@@ -571,6 +571,7 @@ const deleteRecord = async (id: string) => {
 .record-wrapper {
   position: relative;
   width: 100%;
+  flex-shrink: 0;
   overflow: hidden;
   border-radius: 20px;
   animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);

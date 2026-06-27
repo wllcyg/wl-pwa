@@ -216,7 +216,7 @@ const enablePush = async () => {
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  background-color: var(--color-bg);
+  background-color: var(--color-bg-page);
 }
 
 .main-content {
@@ -229,7 +229,7 @@ const enablePush = async () => {
   height: calc(64px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom); 
   display: flex;
-  background-color: var(--color-surface);
+  background-color: var(--color-bg-surface);
   box-shadow: 0 -2px 10px rgba(0,0,0,0.02);
   z-index: 50;
   position: relative;
@@ -305,7 +305,7 @@ const enablePush = async () => {
   position: absolute;
   clip-path: url(#menu-clip);
   will-change: transform;
-  background-color: var(--color-surface);
+  background-color: var(--color-bg-surface);
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   /* Use pointer-events none so it doesn't block clicks */
   pointer-events: none;

@@ -93,7 +93,7 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: var(--color-bg); /* 页面底色 */
+  background: var(--color-bg-page); /* 页面底色 */
   box-shadow: -4px 0 16px rgba(0,0,0,0.05); /* 左侧阴影，模拟纸张叠放 */
 }
 </style>
