@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS daily_words (
 
 CREATE TABLE IF NOT EXISTS records (
   id TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
   raw_text TEXT NOT NULL,
   type TEXT NOT NULL,
   parsed_data TEXT NOT NULL,

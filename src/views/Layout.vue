@@ -8,6 +8,7 @@ const route = useRoute()
 const userStore = useUserStore()
 
 const showPrompt = ref(false)
+const isKeyboardVisible = ref(false)
 const VAPID_PUBLIC_KEY = 'BBOhr7vlawsYEFIiLCPEDKVGyQze6UfOkDaGPwB_TO6Ccws6PV0chzAQsIooCJqNlJxu7zGfOxIAbXlTSh_tXT8'
 
 onMounted(() => {
@@ -20,6 +21,17 @@ onMounted(() => {
       }, 1500)
     }
   }
+
+  // 监听输入框焦点，自动隐藏底部 Tab 栏，防止被键盘顶起
+  window.addEventListener('focusin', (e) => {
+    const target = e.target as HTMLElement
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+      isKeyboardVisible.value = true
+    }
+  })
+  window.addEventListener('focusout', () => {
+    isKeyboardVisible.value = false
+  })
 })
 
 const dismissPrompt = () => {
@@ -85,7 +97,7 @@ const enablePush = async () => {
     </main>
 
     <!-- 底部 Tab 导航栏 -->
-    <nav class="bottom-tab-bar">
+    <nav class="bottom-tab-bar" v-show="!isKeyboardVisible">
       <router-link to="/words" replace class="tab-item" :class="{ active: route.path === '/words' }">
         <BookOpen :size="24" :stroke-width="route.path === '/words' ? 2.5 : 2" />
         <span>单词</span>

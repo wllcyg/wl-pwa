@@ -6,6 +6,13 @@ export const onRequestPost: PagesFunction<{ AI: any, DB: any }> = async (context
       return new Response('Bad Request', { status: 400 })
     }
 
+    // 鉴权获取用户
+    const token = request.headers.get('Authorization')
+    if (!token || !token.startsWith('Bearer real-jwt-token-for-')) {
+      return Response.json({ error: 'Unauthorized, please login first' }, { status: 401 })
+    }
+    const username = token.replace('Bearer real-jwt-token-for-', '')
+
     // 1. 获取现有分类，帮助 AI 归类，避免分类发散
     let existingCategories: string[] = []
     try {
@@ -13,8 +20,9 @@ export const onRequestPost: PagesFunction<{ AI: any, DB: any }> = async (context
         `SELECT DISTINCT json_extract(parsed_data, '$.primaryCategory') as cat 
          FROM records 
          WHERE type = 'expense' 
+         AND username = ?
          AND json_extract(parsed_data, '$.primaryCategory') IS NOT NULL`
-      ).all()
+      ).bind(username).all()
       existingCategories = results.map((r: any) => r.cat).filter(Boolean)
     } catch (e) {
       // 忽略表不存在或查询失败
@@ -96,8 +104,8 @@ Output exact JSON schema:
     const parsedDataStr = JSON.stringify(parsedJson.parsedData || {})
 
     await env.DB.prepare(
-      `INSERT INTO records (id, raw_text, type, parsed_data) VALUES (?, ?, ?, ?)`
-    ).bind(recordId, text, type, parsedDataStr).run()
+      `INSERT INTO records (id, username, raw_text, type, parsed_data) VALUES (?, ?, ?, ?, ?)`
+    ).bind(recordId, username, text, type, parsedDataStr).run()
 
     // 6. 返回给前端渲染
     return new Response(JSON.stringify({

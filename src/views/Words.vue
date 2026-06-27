@@ -29,6 +29,12 @@ useSwipe(swipeContainerRef, {
 
 const changeWord = (newIndex: number) => {
   if (newIndex === currentIndex.value) return
+  
+  // 切换单词时，立刻停止当前正在播放的发音
+  window.speechSynthesis.cancel()
+  playingText.value = ''
+  loadingText.value = ''
+  
   isTransitioning.value = true
   
   setTimeout(() => {
@@ -67,9 +73,12 @@ const playAudio = async (text: string) => {
       loadingText.value = ''
     }
     
-    utterance.onerror = (e) => {
-      console.error('Speech synthesis failed', e)
-      toast.error('系统语音播放失败')
+    utterance.onerror = (e: any) => {
+      // 被手动打断（切换单词）时不报错
+      if (e.error !== 'canceled' && e.error !== 'interrupted') {
+        console.error('Speech synthesis failed', e)
+        toast.error('系统语音播放失败')
+      }
       playingText.value = ''
       loadingText.value = ''
     }
