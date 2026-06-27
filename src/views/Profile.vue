@@ -54,7 +54,7 @@ const checkForUpdate = async () => {
 
 // Push Notifications
 const pushEnabled = ref(false)
-const VAPID_PUBLIC_KEY = 'BBOhr7vlawsYEFIiLCPEDKVGyQze6UfOkDaGPwB_TO6Ccws6PV0chzAQsIooCJqNlJxu7zGfOxIAbXlTSh_tXT8'
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || ''
 
 const urlBase64ToUint8Array = (base64String: string) => {
   const padding = '='.repeat((4 - base64String.length % 4) % 4)
@@ -81,6 +81,11 @@ const togglePush = async () => {
   }
 
   try {
+    if (!VAPID_PUBLIC_KEY) {
+      alert('推送配置缺失，请联系管理员')
+      return
+    }
+
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') {
       alert('必须授权才能开启通知。')
@@ -100,7 +105,7 @@ const togglePush = async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer real-jwt-token-for-${userStore.userInfo?.username}`
+        'Authorization': `Bearer ${userStore.token}`
       },
       body: JSON.stringify({
         endpoint: subJson.endpoint,

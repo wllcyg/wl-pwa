@@ -1,64 +1,70 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import { useUserStore } from '../store/user'
+import { createRouter, createWebHistory } from "vue-router";
+import { useUserStore } from "../store/user";
 
 const routes = [
   {
-    path: '/login',
-    name: 'Login',
-    component: () => import('../views/Login.vue')
+    path: "/login",
+    name: "Login",
+    component: () => import("../views/Login.vue"),
   },
   {
-    path: '/',
-    component: () => import('../views/Layout.vue'),
+    path: "/",
+    component: () => import("../views/Layout.vue"),
     meta: { requiresAuth: true },
-    redirect: '/words',
+    redirect: "/words",
     children: [
       {
-        path: 'words',
-        name: 'Words',
-        component: () => import('../views/Words.vue'),
-        meta: { keepAlive: true }
+        path: "words",
+        name: "Words",
+        component: () => import("../views/Words.vue"),
+        meta: { keepAlive: true },
       },
       {
-        path: 'profile',
-        name: 'Profile',
-        component: () => import('../views/Profile.vue'),
-        meta: { keepAlive: true }
+        path: "profile",
+        name: "Profile",
+        component: () => import("../views/Profile.vue"),
+        meta: { keepAlive: true },
       },
       {
-        path: 'record',
-        name: 'Record',
-        component: () => import('../views/Record.vue'),
-        meta: { keepAlive: true }
-      }
-    ]
+        path: "record",
+        name: "Record",
+        component: () => import("../views/Record.vue"),
+        meta: { keepAlive: true },
+      },
+      {
+        path: "travel",
+        name: "Travel",
+        component: () => import("../views/Travel.vue"),
+        meta: { keepAlive: true },
+      },
+    ],
   },
   {
-    path: '/edit-profile',
-    name: 'EditProfile',
-    component: () => import('../views/EditProfile.vue'),
-    meta: { requiresAuth: true }
-  }
-]
+    path: "/edit-profile",
+    name: "EditProfile",
+    component: () => import("../views/EditProfile.vue"),
+    meta: { requiresAuth: true },
+  },
+];
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
-})
+  routes,
+});
 
 // 路由守卫：登录拦截
 router.beforeEach((to, _from, next) => {
-  const userStore = useUserStore()
-  
+  const userStore = useUserStore();
+
   if (to.meta.requiresAuth && !userStore.token) {
     // 如果需要权限但没登录，踢去登录页
-    next('/login')
-  } else if (to.path === '/login' && userStore.token) {
+    next("/login");
+  } else if (to.path === "/login" && userStore.token) {
     // 如果已经登录还去登录页，直接进首页
-    next('/')
+    next("/");
   } else {
-    next()
+    next();
   }
-})
+});
 
-export default router
+export default router;

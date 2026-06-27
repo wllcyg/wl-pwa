@@ -20,14 +20,7 @@ interface RecordItem {
   }
 }
 
-const formatTime = (date: Date) => {
-  const y = date.getFullYear()
-  const mo = (date.getMonth() + 1).toString().padStart(2, '0')
-  const d = date.getDate().toString().padStart(2, '0')
-  const h = date.getHours().toString().padStart(2, '0')
-  const m = date.getMinutes().toString().padStart(2, '0')
-  return `${y}-${mo}-${d} ${h}:${m}`
-}
+
 
 const records = ref<RecordItem[]>([])
 
@@ -405,7 +398,6 @@ const deleteRecord = async (id: string) => {
           <div v-if="item.type === 'loading'" class="loading-state">
             <Loader2 class="spin-icon" :size="18" />
             <span class="loading-text">✨ AI 正在拆解你的记录...</span>
-            <span class="record-time">{{ formatTime(item.createdAt) }}</span>
           </div>
 
           <!-- 记账类型 -->
@@ -418,7 +410,6 @@ const deleteRecord = async (id: string) => {
               <div class="tags-row">
                 <span v-for="tag in item.parsedData?.tags" :key="tag" class="ai-tag">{{ tag }}</span>
               </div>
-              <span class="record-time">{{ formatTime(item.createdAt) }}</span>
             </div>
             <div class="amount-wrap">
               <span class="currency">¥</span>
@@ -437,7 +428,6 @@ const deleteRecord = async (id: string) => {
               <div class="tags-row">
                 <span class="ai-tag highlight-time">{{ item.parsedData?.deadline }}</span>
               </div>
-              <span class="record-time">{{ formatTime(item.createdAt) }}</span>
             </div>
             <h3 class="todo-summary">{{ item.parsedData?.summary }}</h3>
             <p class="raw-text-dimmed">{{ item.rawText }}</p>
@@ -453,7 +443,6 @@ const deleteRecord = async (id: string) => {
               <div class="tags-row">
                 <span v-for="tag in item.parsedData?.tags" :key="tag" class="ai-tag">{{ tag }}</span>
               </div>
-              <span class="record-time">{{ formatTime(item.createdAt) }}</span>
             </div>
             <p class="note-raw-text">{{ item.rawText }}</p>
           </div>

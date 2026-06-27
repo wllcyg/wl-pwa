@@ -33,3 +33,17 @@ CREATE TABLE IF NOT EXISTS records (
   parsed_data TEXT NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS travel_logs (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  image_key TEXT,
+  place_name TEXT,
+  lat REAL,
+  lng REAL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_travel_logs_user_created_at
+ON travel_logs(username, created_at DESC);

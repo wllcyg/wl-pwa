@@ -18,5 +18,6 @@ database_id = "4d5c79ea-3e5b-453f-907a-89b3eb7d3b06"
 binding = "VECTORIZE"
 index_name = "word-embeddings"
 
-[vars]
-VAPID_PRIVATE_KEY = '{"key_ops":["sign"],"ext":true,"kty":"EC","x":"E6Gvu-VrCxgQUiIsI8QMpUbJDN7pR86QNoY_AH9M7oI","y":"cws6PV0chzAQsIooCJqNlJxu7zGfOxIAbXlTSh_tXT8","crv":"P-256","d":"Z7mLiShkdtlGDF6YcyTh0e_TZhwdXzjLEUDtGLsj-ic"}'
+# Secrets (set via `wrangler secret put`):
+# - VAPID_PRIVATE_KEY (JSON JWK string)
+# - DASHSCOPE_API_KEY

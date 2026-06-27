@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BookOpen, User, Bell, Sparkles } from '@lucide/vue'
+import { BookOpen, User, Bell, Sparkles, MapPin } from '@lucide/vue'
 import { useRoute } from 'vue-router'
 import { ref, onMounted, watch, nextTick, onUnmounted } from 'vue'
 import { useUserStore } from '../store/user'
@@ -37,7 +37,7 @@ const offsetMenuBorder = () => {
   
   menuBorderRef.value.style.transform = `translate3d(${left}px, 0, 0)`
 }
-const VAPID_PUBLIC_KEY = 'BBOhr7vlawsYEFIiLCPEDKVGyQze6UfOkDaGPwB_TO6Ccws6PV0chzAQsIooCJqNlJxu7zGfOxIAbXlTSh_tXT8'
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || ''
 
 onMounted(() => {
   // Only show if logged in, browser supports push, and hasn't been dismissed
@@ -96,6 +96,12 @@ const urlBase64ToUint8Array = (base64String: string) => {
 const enablePush = async () => {
   showPrompt.value = false
   try {
+    if (!VAPID_PUBLIC_KEY) {
+      console.error('VITE_VAPID_PUBLIC_KEY is not configured')
+      localStorage.setItem('pushPromptDismissed', 'true')
+      return
+    }
+
     const permission = await Notification.requestPermission()
     if (permission === 'granted') {
       const registration = await navigator.serviceWorker.ready
@@ -110,7 +116,7 @@ const enablePush = async () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer real-jwt-token-for-${userStore.userInfo?.username}`
+          'Authorization': `Bearer ${userStore.token}`
         },
         body: JSON.stringify({
           endpoint: subJson.endpoint,
@@ -167,6 +173,19 @@ const enablePush = async () => {
         <span class="tab-label">闪记</span>
       </router-link>
       
+      <router-link 
+        to="/travel" 
+        replace 
+        class="tab-item" 
+        :class="{ active: route.path === '/travel' }"
+        :ref="el => setItemRef(el, '/travel')"
+      >
+        <div class="icon-wrap">
+          <MapPin :size="24" :stroke-width="route.path === '/travel' ? 2.5 : 2" />
+        </div>
+        <span class="tab-label">旅行</span>
+      </router-link>
+
       <router-link 
         to="/profile" 
         replace 

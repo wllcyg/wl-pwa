@@ -51,7 +51,7 @@ onMounted(() => {
       fetch('/api/ping', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer real-jwt-token-for-${userStore.userInfo?.username}`
+          'Authorization': `Bearer ${userStore.token}`
         }
       }).then(res => {
         if (res.ok) localStorage.setItem('lastActiveDate', today)

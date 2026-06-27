@@ -1,32 +1,54 @@
-export const onRequestPost: PagesFunction<{ AI: any, DB: any }> = async (context) => {
-  const { request, env } = context
+import { extractBearerToken, verifyJwt } from "./auth";
+
+type Env = {
+  AI: any;
+  DB: any;
+  JWT_SECRET: string;
+  DASHSCOPE_API_KEY: string;
+};
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
   try {
-    const { text } = await request.json() as { text: string }
+    const { text } = (await request.json()) as { text: string };
     if (!text) {
-      return new Response('Bad Request', { status: 400 })
+      return new Response("Bad Request", { status: 400 });
     }
 
     // 鉴权获取用户
-    const token = request.headers.get('Authorization')
-    if (!token || !token.startsWith('Bearer real-jwt-token-for-')) {
-      return Response.json({ error: 'Unauthorized, please login first' }, { status: 401 })
+    const token = extractBearerToken(request.headers.get("Authorization"));
+    if (!token || !env.JWT_SECRET) {
+      return Response.json(
+        { error: "Unauthorized, please login first" },
+        { status: 401 },
+      );
     }
-    const username = token.replace('Bearer real-jwt-token-for-', '')
+
+    const payload = await verifyJwt(token, env.JWT_SECRET);
+    if (!payload) {
+      return Response.json(
+        { error: "Unauthorized, please login first" },
+        { status: 401 },
+      );
+    }
+    const username = payload.sub;
 
     // 1. 获取现有分类，帮助 AI 归类，避免分类发散
-    let existingCategories: string[] = []
+    let existingCategories: string[] = [];
     try {
       const { results } = await env.DB.prepare(
-        `SELECT DISTINCT json_extract(parsed_data, '$.primaryCategory') as cat 
-         FROM records 
-         WHERE type = 'expense' 
+        `SELECT DISTINCT json_extract(parsed_data, '$.primaryCategory') as cat
+         FROM records
+         WHERE type = 'expense'
          AND username = ?
-         AND json_extract(parsed_data, '$.primaryCategory') IS NOT NULL`
-      ).bind(username).all()
-      existingCategories = results.map((r: any) => r.cat).filter(Boolean)
+         AND json_extract(parsed_data, '$.primaryCategory') IS NOT NULL`,
+      )
+        .bind(username)
+        .all();
+      existingCategories = results.map((r: any) => r.cat).filter(Boolean);
     } catch (e) {
       // 忽略表不存在或查询失败
-      console.error('Fetch categories error:', e)
+      console.error("Fetch categories error:", e);
     }
 
     // 2. 组装 System Prompt
@@ -50,125 +72,155 @@ Output exact JSON schema:
     "summary": "...",
     "tags": ["..."]
   }
-}`
+}`;
 
     // 3. 召唤 外部 Qwen 大模型 (OpenAI 兼容接口)
-    const apiKey = 'sk-9eba23ea436b4603b40260f79f86fe0c'
-    const aiResponse = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
+    const apiKey = env.DASHSCOPE_API_KEY;
+    if (!apiKey) {
+      throw new Error("DASHSCOPE_API_KEY is not configured");
+    }
+
+    const aiResponse = await fetch(
+      "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "qwen3.7-plus", // 强制使用指定的版本号
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: text },
+          ],
+          temperature: 0.1, // 降低随机性，确保 JSON 格式稳定
+        }),
       },
-      body: JSON.stringify({
-        model: 'qwen3.7-plus', // 强制使用指定的版本号
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: text }
-        ],
-        temperature: 0.1 // 降低随机性，确保 JSON 格式稳定
-      })
-    })
+    );
 
     if (!aiResponse.ok) {
-      const errorText = await aiResponse.text()
-      throw new Error(`AI API failed: ${aiResponse.status} ${errorText}`)
+      const errorText = await aiResponse.text();
+      throw new Error(`AI API failed: ${aiResponse.status} ${errorText}`);
     }
 
-    const aiData = await aiResponse.json()
-    let jsonStr = aiData.choices?.[0]?.message?.content || ''
-    
+    const aiData = await aiResponse.json();
+    let jsonStr = aiData.choices?.[0]?.message?.content || "";
+
     // 4. 解析 JSON
-    jsonStr = jsonStr.trim()
-    if (jsonStr.startsWith('```json')) {
-      jsonStr = jsonStr.replace(/^```json/, '').replace(/```$/, '').trim()
-    } else if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.replace(/^```/, '').replace(/```$/, '').trim()
+    jsonStr = jsonStr.trim();
+    if (jsonStr.startsWith("```json")) {
+      jsonStr = jsonStr
+        .replace(/^```json/, "")
+        .replace(/```$/, "")
+        .trim();
+    } else if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.replace(/^```/, "").replace(/```$/, "").trim();
     }
 
-    let parsedJson: any = {}
+    let parsedJson: any = {};
     try {
-      parsedJson = JSON.parse(jsonStr)
+      parsedJson = JSON.parse(jsonStr);
     } catch (parseError) {
-      console.error('AI JSON Parse Error:', jsonStr)
+      console.error("AI JSON Parse Error:", jsonStr);
       // 回退策略：作为普通笔记
       parsedJson = {
-        type: 'note',
-        parsedData: { summary: text.slice(0, 20), tags: ['AI 解析失败'] }
-      }
+        type: "note",
+        parsedData: { summary: text.slice(0, 20), tags: ["AI 解析失败"] },
+      };
     }
 
     // 5. 保存入库 D1
-    const recordId = crypto.randomUUID()
-    const type = parsedJson.type || 'note'
-    const parsedDataStr = JSON.stringify(parsedJson.parsedData || {})
+    const recordId = crypto.randomUUID();
+    const type = parsedJson.type || "note";
+    const parsedDataStr = JSON.stringify(parsedJson.parsedData || {});
 
     await env.DB.prepare(
-      `INSERT INTO records (id, username, raw_text, type, parsed_data) VALUES (?, ?, ?, ?, ?)`
-    ).bind(recordId, username, text, type, parsedDataStr).run()
+      `INSERT INTO records (id, username, raw_text, type, parsed_data) VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind(recordId, username, text, type, parsedDataStr)
+      .run();
 
     // 6. 返回给前端渲染
-    return new Response(JSON.stringify({
-      id: recordId,
-      rawText: text,
-      type: type,
-      parsedData: parsedJson.parsedData,
-      createdAt: new Date().toISOString()
-    }), { headers: { 'Content-Type': 'application/json' } })
-
+    return new Response(
+      JSON.stringify({
+        id: recordId,
+        rawText: text,
+        type: type,
+        parsedData: parsedJson.parsedData,
+        createdAt: new Date().toISOString(),
+      }),
+      { headers: { "Content-Type": "application/json" } },
+    );
   } catch (err: any) {
-    console.error("API ERROR:", err.stack || err.message || err)
-    return new Response(JSON.stringify({ error: err.message, stack: err.stack }), { 
-      status: 500,
-      headers: { 'Content-Type': 'application/json' } 
-    })
+    console.error("API ERROR:", err.stack || err.message || err);
+    return new Response(
+      JSON.stringify({ error: err.message, stack: err.stack }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
-}
+};
 
-export const onRequestGet: PagesFunction<{ DB: any }> = async (context) => {
-  const { request, env } = context
-  const token = request.headers.get('Authorization')
-  if (!token || !token.startsWith('Bearer real-jwt-token-for-')) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
+  const token = extractBearerToken(request.headers.get("Authorization"));
+  if (!token || !env.JWT_SECRET) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const username = token.replace('Bearer real-jwt-token-for-', '')
+
+  const payload = await verifyJwt(token, env.JWT_SECRET);
+  if (!payload) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const username = payload.sub;
 
   try {
     const { results } = await env.DB.prepare(
-      `SELECT * FROM records WHERE username = ? ORDER BY created_at ASC`
-    ).bind(username).all()
+      `SELECT * FROM records WHERE username = ? ORDER BY created_at ASC`,
+    )
+      .bind(username)
+      .all();
 
     const mapped = results.map((r: any) => ({
       id: r.id,
       rawText: r.raw_text,
       type: r.type,
-      parsedData: JSON.parse(r.parsed_data || '{}'),
-      createdAt: r.created_at
-    }))
+      parsedData: JSON.parse(r.parsed_data || "{}"),
+      createdAt: r.created_at,
+    }));
 
-    return Response.json(mapped)
+    return Response.json(mapped);
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 })
+    return Response.json({ error: err.message }, { status: 500 });
   }
-}
+};
 
-export const onRequestDelete: PagesFunction<{ DB: any }> = async (context) => {
-  const { request, env } = context
-  const token = request.headers.get('Authorization')
-  if (!token || !token.startsWith('Bearer real-jwt-token-for-')) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+export const onRequestDelete: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
+  const token = extractBearerToken(request.headers.get("Authorization"));
+  if (!token || !env.JWT_SECRET) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const username = token.replace('Bearer real-jwt-token-for-', '')
-  
-  const url = new URL(request.url)
-  const id = url.searchParams.get('id')
-  if (!id) return Response.json({ error: 'Missing id' }, { status: 400 })
+
+  const payload = await verifyJwt(token, env.JWT_SECRET);
+  if (!payload) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const username = payload.sub;
+
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
   try {
     await env.DB.prepare(`DELETE FROM records WHERE id = ? AND username = ?`)
-      .bind(id, username).run()
-    return Response.json({ success: true })
+      .bind(id, username)
+      .run();
+    return Response.json({ success: true });
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 })
+    return Response.json({ error: err.message }, { status: 500 });
   }
-}
+};

@@ -14,3 +14,10 @@ bucket_name = "my-blog-bucket"
 
 [ai]
 binding = "AI"
+
+# Pages Secrets (set via `wrangler pages secret put`):
+# QWeather city-lookup uses Authorization: Bearer <QWEATHER_TOKEN>
+# - JWT_SECRET
+# - DASHSCOPE_API_KEY
+# - QWEATHER_TOKEN
+# - QWEATHER_API_HOST (optional, default: geoapi.qweather.com)
